@@ -19,7 +19,7 @@ import { Input } from '@/components/ui/input'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { ExclamationTriangleIcon } from '@radix-ui/react-icons'
 import { registerSchema } from '@/lib/validations'
-import registerUser from '../actions/auth'
+import registerUser from '../../actions/auth'
 
 export default function RegisterPage() {
 	const router = useRouter()

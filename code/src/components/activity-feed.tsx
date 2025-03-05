@@ -127,7 +127,7 @@ export function ActivityFeed() {
 						</div>
 					</CardHeader>
 					<CardContent className="p-4">
-						<Link href={`/discussion/${item.id}`} className="block">
+						<Link href={`/posts/${item.id}`} className="block">
 							<h3 className="text-lg font-semibold mb-2 hover:text-primary transition-colors">
 								{item.title}
 							</h3>
@@ -152,17 +152,12 @@ export function ActivityFeed() {
 							{/* Images */}
 							{item.images && item.images.length > 0 && (
 								<div className="rounded-md overflow-hidden mb-4">
-									{/* <img
-										src={item.images[0] || '/placeholder.svg'}
-										alt="Post attachment"
-										className="w-full h-auto object-cover"
-									/> */}
 									<Image
 										src={item.images[0] || '/placeholder.svg'}
 										alt="Post attachment"
-										layout="responsive"
 										width={600}
 										height={300}
+										className="w-full h-auto object-cover"
 									/>
 								</div>
 							)}

@@ -1,26 +1,23 @@
 import { ActivityFeed } from '@/components/activity-feed'
-// import { SearchFilters } from '@/components/search-filters'
-// import { CategoryTabs } from '@/components/category-tabs'
+import { CategoryTabs } from '@/components/category-tabs'
+import { SearchFilters } from '@/components/search-filters'
 
-export default async function Home() {
+export default function Home() {
 	return (
-		<div className="container mx-auto px-4 py-6 max-w-5xl">
-			<div className="flex flex-col md:flex-row gap-6">
-				{/* Left sidebar for larger screens */}
-				<aside className="hidden md:block w-64 shrink-0">
+		<div className="px-8 py-6 max-w-[1400px] mx-auto">
+			<div className="flex gap-6">
+				{/* Left sidebar */}
+				<aside className="w-64 shrink-0">
 					<div className="sticky top-20">
 						<h2 className="text-xl font-semibold mb-4">Categories</h2>
-						{/* <CategoryTabs orientation="vertical" /> */}
+						<CategoryTabs />
 					</div>
 				</aside>
 
 				{/* Main content */}
 				<div className="flex-1">
-					{/* Mobile category tabs */}
-					<div className="md:hidden mb-6">{/* <CategoryTabs orientation="horizontal" /> */}</div>
-
 					{/* Search and filters */}
-					{/* <SearchFilters /> */}
+					<SearchFilters />
 
 					{/* Activity feed */}
 					<div className="mt-6">
