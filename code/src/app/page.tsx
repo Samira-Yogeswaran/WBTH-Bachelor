@@ -1,13 +1,13 @@
 'use client'
 
 import { ActivityFeed } from '@/components/activity-feed'
-import { CategoryTabs } from '@/components/category-tabs'
+import { ModuleTabs } from '@/components/category-tabs'
 import { SearchFilters } from '@/components/search-filters'
-import { ActiveModule } from '@/types/general'
+import { Module } from '@/types/general'
 import { useState } from 'react'
 
 export default function Home() {
-	const [activeCategory, setActiveCategory] = useState<ActiveModule>({
+	const [activeModule, setActiveModule] = useState<Module>({
 		id: 'all',
 		name: 'All',
 	})
@@ -20,8 +20,8 @@ export default function Home() {
 				{/* Left sidebar */}
 				<aside className="w-64 shrink-0">
 					<div className="sticky top-20">
-						<h2 className="text-xl font-semibold mb-4">Categories</h2>
-						<CategoryTabs activeModule={activeCategory} setActiveModule={setActiveCategory} />
+						<h2 className="text-xl font-semibold mb-4">Module</h2>
+						<ModuleTabs activeModule={activeModule} setActiveModule={setActiveModule} />
 					</div>
 				</aside>
 
@@ -35,7 +35,7 @@ export default function Home() {
 					/>
 
 					<div className="mt-6">
-						<ActivityFeed />
+						<ActivityFeed activeModule={activeModule} />
 					</div>
 				</div>
 			</div>

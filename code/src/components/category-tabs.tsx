@@ -5,41 +5,29 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { supabase } from '@/lib/supabase'
-import { ActiveModule } from '@/types/general'
+import { Module } from '@/types/general'
 
-export function CategoryTabs({
+export function ModuleTabs({
 	activeModule,
 	setActiveModule,
 }: {
-	activeModule: ActiveModule
-	setActiveModule: (module: ActiveModule) => void
+	activeModule: Module
+	setActiveModule: (module: Module) => void
 }) {
-	const [modules, setModules] = useState<
-		{
-			id: string
-			name: string
-		}[]
-	>([
-		{
-			id: 'all',
-			name: 'All',
-		},
-	])
+	const [modules, setModules] = useState<Module[]>([])
 	const [isLoading, setIsLoading] = useState(true)
 
 	useEffect(() => {
 		const fetchModules = async () => {
 			setIsLoading(true)
+
 			try {
-				const { data } = await supabase.from('modules').select('name')
+				const { data } = await supabase.from('modules').select('id, name')
+
 				if (data) {
-					setModules((prev) => [
-						...prev,
-						...data.map((module) => ({
-							id: module.name,
-							name: module.name,
-						})),
-					])
+					setModules([{ id: 'all', name: 'All' }, ...data])
+				} else {
+					setModules([{ id: 'all', name: 'All' }])
 				}
 			} catch (error) {
 				console.error('Error fetching modules:', error)
@@ -49,15 +37,6 @@ export function CategoryTabs({
 		}
 
 		fetchModules()
-
-		return () => {
-			setModules([
-				{
-					id: 'all',
-					name: 'All',
-				},
-			])
-		}
 	}, [])
 
 	return (

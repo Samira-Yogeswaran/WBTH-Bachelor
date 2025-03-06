@@ -29,8 +29,6 @@ export default async function registerUser(userData: z.infer<typeof registerSche
 		}
 
 		if (data.user) {
-			console.log('Benutzerdatensatz erstellen:', data.user.id)
-
 			const { error: insertError } = await supabase.from('users').insert({
 				id: data.user.id,
 				firstname: validatedData.firstName,

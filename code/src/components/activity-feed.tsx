@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { Heart, MessageCircle, Share2, Bookmark, FileText } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import Image from 'next/image'
+import { Module } from '@/types/general'
 
 // Mock data for the feed
 const mockFeedItems = [
@@ -75,7 +76,9 @@ const mockFeedItems = [
 	},
 ]
 
-export function ActivityFeed() {
+export function ActivityFeed({ activeModule }: { activeModule: Module }) {
+	console.log(activeModule)
+
 	const [feedItems, setFeedItems] = useState(mockFeedItems)
 
 	const handleLike = (postId: string) => {
@@ -180,7 +183,7 @@ export function ActivityFeed() {
 								className="flex items-center gap-1 text-muted-foreground hover:text-primary"
 								asChild
 							>
-								<Link href={`/discussion/${item.id}`}>
+								<Link href={`/posts/${item.id}`}>
 									<MessageCircle className="h-4 w-4" />
 									<span>{item.comments}</span>
 								</Link>

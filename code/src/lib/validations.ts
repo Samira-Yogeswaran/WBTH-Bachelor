@@ -17,3 +17,9 @@ export const loginSchema = z.object({
 	email: z.string().email({ message: 'Bitte geben Sie eine gültige E-Mail-Adresse ein' }),
 	password: z.string().min(6, { message: 'Passwort muss mindestens 6 Zeichen lang sein' }),
 })
+
+export const postSchema = z.object({
+	title: z.string().min(5, { message: 'Titel muss mindestens 5 Zeichen lang sein' }),
+	module: z.string({ required_error: 'Bitte wählen Sie ein Modul aus' }),
+	// files: z.array(z.any()).min(1, { message: 'Bitte laden Sie mindestens eine Datei hoch' }),
+})
