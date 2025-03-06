@@ -1,6 +1,3 @@
-'use client'
-
-import { useState } from 'react'
 import { Search } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import {
@@ -11,9 +8,17 @@ import {
 	SelectValue,
 } from '@/components/ui/select'
 
-export function SearchFilters() {
-	const [searchQuery, setSearchQuery] = useState('')
-
+export function SearchFilters({
+	searchQuery,
+	setSearchQuery,
+	sortBy,
+	setSortBy,
+}: {
+	searchQuery: string
+	setSearchQuery: (value: string) => void
+	sortBy: string
+	setSortBy: (value: 'recent' | 'popular' | 'comments') => void
+}) {
 	return (
 		<div className="space-y-4">
 			<div className="flex flex-col sm:flex-row gap-2">
@@ -28,7 +33,7 @@ export function SearchFilters() {
 					/>
 				</div>
 				<div className="flex gap-2">
-					<Select defaultValue="recent">
+					<Select value={sortBy} onValueChange={setSortBy}>
 						<SelectTrigger className="w-[140px]">
 							<SelectValue placeholder="Sort by" />
 						</SelectTrigger>
