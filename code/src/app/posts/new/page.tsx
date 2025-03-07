@@ -23,7 +23,6 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from '@/components/ui/select'
-import { FileUploader } from '@/components/file-uploader'
 import { postSchema } from '@/lib/validations'
 import { Module } from '@/types/general'
 import { supabase } from '@/lib/supabase'
@@ -101,10 +100,10 @@ export default function UploadPage() {
 							control={form.control}
 							name="module"
 							render={({ field }) => (
-								<FormItem className="w-full">
+								<FormItem>
 									<FormLabel>Module</FormLabel>
-									<Select onValueChange={field.onChange} defaultValue={field.value}>
-										<FormControl>
+									<FormControl>
+										<Select onValueChange={field.onChange} defaultValue={field.value}>
 											<SelectTrigger className="w-full">
 												<SelectValue
 													placeholder={
@@ -112,21 +111,15 @@ export default function UploadPage() {
 													}
 												/>
 											</SelectTrigger>
-										</FormControl>
-										<SelectContent>
-											{modules.length === 0 ? (
-												<SelectItem value="loading" disabled>
-													Lädt Module...
-												</SelectItem>
-											) : (
-												modules.map((module) => (
+											<SelectContent>
+												{modules.map((module) => (
 													<SelectItem key={module.id} value={module.id}>
 														{module.name}
 													</SelectItem>
-												))
-											)}
-										</SelectContent>
-									</Select>
+												))}
+											</SelectContent>
+										</Select>
+									</FormControl>
 									<FormDescription>
 										Wählen Sie die relevanteste Kategorie für Ihre Materialien
 									</FormDescription>

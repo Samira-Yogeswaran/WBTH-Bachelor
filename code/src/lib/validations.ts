@@ -20,6 +20,6 @@ export const loginSchema = z.object({
 
 export const postSchema = z.object({
 	title: z.string().min(5, { message: 'Titel muss mindestens 5 Zeichen lang sein' }),
-	module: z.string({ required_error: 'Bitte wählen Sie ein Modul aus' }),
+	module: z.string().nonempty({ message: 'Bitte wählen Sie ein Modul aus' }),
 	// files: z.array(z.any()).min(1, { message: 'Bitte laden Sie mindestens eine Datei hoch' }),
 })
