@@ -9,7 +9,7 @@ import { useState } from 'react'
 export default function Home() {
 	const [activeModule, setActiveModule] = useState<Module>({
 		id: 'all',
-		name: 'All',
+		name: 'Alle',
 	})
 	const [searchQuery, setSearchQuery] = useState('')
 	const [sortBy, setSortBy] = useState<'recent' | 'comments' | 'popular'>('recent')
@@ -35,7 +35,7 @@ export default function Home() {
 					/>
 
 					<div className="mt-6">
-						<ActivityFeed activeModule={activeModule} />
+						<ActivityFeed activeModule={activeModule} searchQuery={searchQuery} sortBy={sortBy} />
 					</div>
 				</div>
 			</div>

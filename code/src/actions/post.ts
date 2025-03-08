@@ -4,6 +4,10 @@ import { z } from 'zod'
 import { supabase } from '@/lib/supabase'
 import { postSchema } from '@/lib/validations'
 import { auth } from './auth'
+import { Post, SimplePost } from '@/types/general'
+import { formatTimestamp } from '@/lib/utils'
+import { PostgrestSingleResponse } from '@supabase/supabase-js'
+import { PostgrestFilterBuilder } from '@supabase/postgrest-js'
 
 type UploadResult = {
 	success: boolean
@@ -118,4 +122,188 @@ export async function createPost(postData: z.infer<typeof postSchema>) {
 			error: 'Ein unerwarteter Fehler ist aufgetreten',
 		}
 	}
+}
+
+export async function getPosts({
+	moduleId = 'all',
+	searchQuery = '',
+	sortBy = 'recent',
+}: {
+	moduleId?: string
+	searchQuery?: string
+	sortBy?: 'recent' | 'popular' | 'comments'
+}) {
+	let query = supabase.from('posts').select(`
+		id,
+		title,
+		created_at,
+		user_id,
+		module_id
+	`) as PostgrestFilterBuilder<any, any, SimplePost[], 'posts', unknown>
+
+	if (moduleId !== 'all') {
+		query = query.eq('module_id', moduleId)
+	}
+
+	if (searchQuery) {
+		query = query.ilike('title', `%${searchQuery}%`)
+	}
+
+	if (sortBy === 'recent') {
+		query = query.order('created_at', { ascending: false })
+	}
+
+	const { data: posts, error: postsError } = await query
+
+	if (postsError) {
+		console.error('Error fetching posts:', postsError)
+		return { success: false, error: 'Beim Abrufen der Beiträge ist ein Fehler aufgetreten.' }
+	}
+
+	if (!posts || posts.length === 0) {
+		return { success: true, data: [] }
+	}
+
+	const postsLikes = (await supabase.rpc('count_likes_by_post', {
+		post_ids: posts.map((post) => post.id),
+	})) as PostgrestSingleResponse<{ post_id: string; count: number }[]>
+
+	if (postsLikes.error) {
+		console.error('Error fetching likes:', postsLikes.error)
+		return { success: false, error: 'Beim Abrufen der Beiträge ist ein Fehler aufgetreten.' }
+	}
+
+	if (sortBy === 'popular') {
+		posts.sort((a, b) => {
+			const likesA = postsLikes.data.find((item) => item.post_id === a.id)?.count || 0
+			const likesB = postsLikes.data.find((item) => item.post_id === b.id)?.count || 0
+			return likesB - likesA
+		})
+	}
+
+	const postsComments = (await supabase.rpc('count_comments_by_post', {
+		post_ids: posts.map((post) => post.id),
+	})) as PostgrestSingleResponse<{ post_id: string; count: number }[]>
+
+	if (postsComments.error) {
+		console.error('Error fetching comments:', postsComments.error)
+		return { success: false, error: 'Beim Abrufen der Beiträge ist ein Fehler aufgetreten.' }
+	}
+
+	if (sortBy === 'comments') {
+		posts.sort((a, b) => {
+			const commentsA = postsComments.data.find((item) => item.post_id === a.id)?.count || 0
+			const commentsB = postsComments.data.find((item) => item.post_id === b.id)?.count || 0
+			return commentsB - commentsA
+		})
+	}
+
+	return { success: true, data: posts }
+}
+
+export async function getPost(postId: string) {
+	const { data, error } = await supabase
+		.from('posts')
+		.select(
+			`
+		id,
+		title,
+		created_at,
+		user_id,
+		module_id
+	`
+		)
+		.eq('id', postId)
+		.single()
+
+	if (error) {
+		console.error('Error fetching post:', error)
+		return { success: false, error: 'Beim Abrufen des Beitrags ist ein Fehler aufgetreten.' }
+	}
+
+	if (!data) {
+		return { success: false, error: 'Beitrag nicht gefunden' }
+	}
+
+	const postLikes = await supabase.rpc('count_likes_by_post', {
+		post_ids: [postId],
+	})
+
+	const postComments = await supabase.rpc('count_comments_by_post', {
+		post_ids: [postId],
+	})
+
+	const user = await supabase
+		.from('users')
+		.select('id, firstname, lastname, email')
+		.eq('id', data.user_id)
+		.single()
+
+	const _module = await supabase
+		.from('modules')
+		.select('id, name')
+		.eq('id', data.module_id)
+		.single()
+
+	if (!user.data || !_module.data) {
+		return { success: false, error: 'Beitrag nicht gefunden' }
+	}
+
+	const loggedUser = await auth()
+	const isLiked = await supabase
+		.from('likes')
+		.select('id')
+		.eq('post_id', postId)
+		.eq('user_id', loggedUser?.user.id)
+		.single()
+
+	return {
+		success: true,
+		data: {
+			id: data.id,
+			title: data.title,
+			user: {
+				id: user.data.id,
+				name: `${user.data.firstname} ${user.data.lastname}`,
+				username: user.data.email.split('@')[0],
+			},
+			module: _module.data.name,
+			likes: postLikes.data[0]?.count || 0,
+			comments: postComments.data[0]?.count || 0,
+			timestamp: formatTimestamp(data.created_at),
+			liked: !!isLiked.data,
+		} as Post,
+	}
+}
+
+export async function likePost(postId: string) {
+	const session = await auth()
+	const userId = session?.user.id
+
+	const isLiked = await supabase
+		.from('likes')
+		.select('id')
+		.eq('post_id', postId)
+		.eq('user_id', userId)
+		.single()
+
+	if (isLiked.data) {
+		const { error } = await supabase.from('likes').delete().eq('id', isLiked.data.id)
+
+		if (error) {
+			console.error('Error deleting like:', error)
+			return { success: false, error: 'Beim Entfernen des Likes ist ein Fehler aufgetreten.' }
+		}
+
+		return { success: true }
+	}
+
+	const { error } = await supabase.from('likes').insert({ post_id: postId, user_id: userId })
+
+	if (error) {
+		console.error('Error inserting like:', error)
+		return { success: false, error: 'Beim Hinzufügen des Likes ist ein Fehler aufgetreten.' }
+	}
+
+	return { success: true }
 }
