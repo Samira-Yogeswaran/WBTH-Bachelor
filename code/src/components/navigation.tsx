@@ -61,7 +61,7 @@ export function Navigation() {
 							<DropdownMenuTrigger asChild>
 								<Button variant="ghost" size="icon" className="rounded-full">
 									<Avatar className="h-8 w-8">
-										<AvatarFallback>{user.name?.charAt(0) || 'U'}</AvatarFallback>
+										<AvatarFallback>{user.name?.charAt(0)}</AvatarFallback>
 									</Avatar>
 								</Button>
 							</DropdownMenuTrigger>

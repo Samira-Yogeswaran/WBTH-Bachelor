@@ -4,7 +4,7 @@ import { z } from 'zod'
 import { supabase } from '@/lib/supabase'
 import { postSchema } from '@/lib/validations'
 import { auth } from './auth'
-import { Post, SimplePost } from '@/types/general'
+import { Comment, Post, SimplePost } from '@/types/general'
 import { formatTimestamp } from '@/lib/utils'
 import { PostgrestSingleResponse } from '@supabase/supabase-js'
 import { PostgrestFilterBuilder } from '@supabase/postgrest-js'
@@ -306,4 +306,90 @@ export async function likePost(postId: string) {
 	}
 
 	return { success: true }
+}
+
+export async function getComments(postId: string) {
+	const { data: comments, error } = await supabase
+		.from('comments')
+		.select(`id, content, created_at, user_id`)
+		.eq('post_id', postId)
+		.order('created_at', { ascending: false })
+
+	if (error) {
+		console.error('Error fetching comments:', error)
+		return { success: false, error: 'Beim Abrufen der Kommentare ist ein Fehler aufgetreten.' }
+	}
+
+	if (!comments || comments.length === 0) {
+		return { success: true, data: [] }
+	}
+
+	const commentsWithUser = await Promise.all(
+		comments.map(async (comment) => {
+			const user = await supabase
+				.from('users')
+				.select('id, firstname, lastname, email')
+				.eq('id', comment.user_id)
+				.single()
+
+			if (!user.data) {
+				return null
+			}
+
+			return {
+				id: comment.id,
+				content: comment.content,
+				timestamp: formatTimestamp(comment.created_at),
+				user: {
+					name: `${user.data.firstname} ${user.data.lastname}`,
+					username: user.data.email.split('@')[0],
+				},
+			}
+		})
+	)
+
+	return { success: true, data: commentsWithUser as unknown as Comment[] }
+}
+
+export async function createComment(postId: string, content: string) {
+	const session = await auth()
+	const userId = session?.user.id
+
+	const { data, error } = await supabase
+		.from('comments')
+		.insert({
+			post_id: postId,
+			user_id: userId,
+			content,
+		})
+		.select()
+
+	if (error) {
+		console.error('Error creating comment:', error)
+		return { success: false, error: 'Beim Erstellen des Kommentars ist ein Fehler aufgetreten.' }
+	}
+
+	const user = await supabase
+		.from('users')
+		.select('id, firstname, lastname, email')
+		.eq('id', userId)
+		.single()
+
+	if (!user.data) {
+		return { success: false, error: 'Beim Erstellen des Kommentars ist ein Fehler aufgetreten.' }
+	}
+
+	console.log(data)
+
+	const commentWithUser = {
+		id: data[0].id,
+		content: data[0].content,
+		timestamp: 'Gerade eben',
+		user: {
+			name: `${user.data.firstname} ${user.data.lastname}`,
+			username: user.data.email.split('@')[0],
+		},
+	}
+
+	return { success: true, data: commentWithUser as unknown as Comment }
 }

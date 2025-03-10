@@ -92,7 +92,7 @@ export default function FeedItem({ itemId }: { itemId: string }) {
 						className="flex items-center gap-1 text-muted-foreground hover:text-primary"
 						asChild
 					>
-						<Link href={`/posts/${item.id}`}>
+						<Link href={`/posts/${item.id}#comments`}>
 							<MessageCircle className="h-4 w-4" />
 							<span>{item.comments}</span>
 						</Link>

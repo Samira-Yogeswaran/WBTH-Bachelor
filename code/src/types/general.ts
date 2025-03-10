@@ -25,3 +25,14 @@ export type SimplePost = {
 	module_id: string
 	user_id: string
 }
+
+export type Comment = {
+	id: string
+	content: string
+	timestamp: string
+	user: {
+		id: string
+		name: string
+		username: string
+	}
+}
