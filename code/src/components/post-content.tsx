@@ -7,18 +7,12 @@ import { Badge } from '@/components/ui/badge'
 
 import { Heart, MessageCircle, FileText } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { Post } from '@/types/general'
+import { Post, PostFile } from '@/types/general'
 import { likePost } from '@/actions/post'
 import { useState } from 'react'
 
 export default function PostContent({ content }: { content: Post }) {
 	const [post, setPost] = useState<Post>(content)
-	const mockPost = {
-		files: [
-			{ id: '1', name: 'Lecture_Notes.pdf', size: '2.4 MB' },
-			{ id: '2', name: 'Assignment.docx', size: '1.1 MB' },
-		],
-	}
 
 	const handleLike = async () => {
 		const { success } = await likePost(post.id)
@@ -31,6 +25,31 @@ export default function PostContent({ content }: { content: Post }) {
 					likes: prev.liked ? prev.likes - 1 : prev.likes + 1,
 				}
 			})
+		}
+	}
+
+	const handleDownload = async (file: PostFile) => {
+		try {
+			const response = await fetch(file.file_url)
+
+			if (!response.ok) {
+				throw new Error(`Download fehlgeschlagen: ${response.statusText}`)
+			}
+
+			const blob = await response.blob()
+
+			const blobUrl = window.URL.createObjectURL(blob)
+			const downloadLink = document.createElement('a')
+			downloadLink.href = blobUrl
+			downloadLink.download = file.file_name.trim()
+			downloadLink.style.display = 'none'
+			document.body.appendChild(downloadLink)
+			downloadLink.click()
+
+			document.body.removeChild(downloadLink)
+			window.URL.revokeObjectURL(blobUrl)
+		} catch (error) {
+			console.error('Download failed:', error instanceof Error ? error.message : String(error))
 		}
 	}
 
@@ -54,20 +73,37 @@ export default function PostContent({ content }: { content: Post }) {
 				<h1 className="text-2xl font-bold mt-4">{post.title}</h1>
 			</CardHeader>
 			<CardContent className="p-6 pt-0 space-y-6">
-				{mockPost.files && mockPost.files.length > 0 && (
+				{post.files && post.files.length > 0 && (
 					<div className="space-y-2">
 						<h3 className="text-sm font-medium mb-2">Angehängte Dateien</h3>
-						{mockPost.files.map((file) => (
+						{post.files.map((file) => (
 							<div
 								key={file.id}
 								className="flex items-center gap-3 p-3 rounded-md border hover:bg-muted transition-colors"
 							>
-								<FileText className="h-5 w-5 text-muted-foreground" />
-								<div className="flex-1">
-									<div className="font-medium">{file.name}</div>
-									<div className="text-xs text-muted-foreground">{file.size}</div>
-								</div>
-								<Button size="sm">Herunterladen</Button>
+								<a
+									href={file.file_url}
+									className="flex-1 flex gap-2"
+									target="_blank"
+									rel="noreferrer"
+								>
+									<FileText className="h-5 w-5 text-muted-foreground" />
+									<span className="font-medium">{file.file_name}</span>
+									<div className="ml-auto flex items-center">
+										<Badge variant="outline" className="text-[10px] px-2 py-0 h-5">
+											v{file.version}
+										</Badge>
+									</div>
+								</a>
+								<Button
+									size="sm"
+									onClick={async (e) => {
+										e.preventDefault()
+										await handleDownload(file)
+									}}
+								>
+									Herunterladen
+								</Button>
 							</div>
 						))}
 					</div>

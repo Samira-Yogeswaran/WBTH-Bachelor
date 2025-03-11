@@ -16,6 +16,7 @@ export type Post = {
 	comments: number
 	timestamp: string
 	liked: boolean
+	files: PostFile[]
 }
 
 export type SimplePost = {
@@ -35,4 +36,11 @@ export type Comment = {
 		name: string
 		username: string
 	}
+}
+
+export type PostFile = {
+	id: string
+	file_name: string
+	file_url: string
+	version: number
 }

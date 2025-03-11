@@ -46,7 +46,7 @@ export default function CommentSection({ postId, username }: { postId: string; u
 		try {
 			const { data } = await createComment(postId, newComment)
 			if (data) {
-				setComments((prev) => [...prev, data])
+				setComments((prev) => [data, ...prev])
 				setNewComment('')
 			} else {
 				setError('Beim Erstellen des Kommentars ist ein Fehler aufgetreten.')

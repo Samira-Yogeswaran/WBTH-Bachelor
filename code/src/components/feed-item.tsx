@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Heart, MessageCircle } from 'lucide-react'
+import { FileText, Heart, MessageCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { getPost, likePost } from '@/actions/post'
 import { useEffect, useState } from 'react'
@@ -53,20 +53,22 @@ export default function FeedItem({ itemId }: { itemId: string }) {
 	return (
 		<Card key={item.id} className="overflow-hidden transition-all hover:shadow-md">
 			<CardHeader className="p-4 pb-0">
-				<div className="flex justify-between items-start">
-					<div className="flex items-center gap-3">
-						<Avatar>
-							<AvatarFallback>{item.user.name.charAt(0)}</AvatarFallback>
-						</Avatar>
-						<div>
-							<div className="font-medium">{item.user.name}</div>
-							<div className="text-sm text-muted-foreground">
-								@{item.user.username} · {item.timestamp}
+				<Link href={`/posts/${item.id}`}>
+					<div className="flex justify-between items-start">
+						<div className="flex items-center gap-3">
+							<Avatar>
+								<AvatarFallback>{item.user.name.charAt(0)}</AvatarFallback>
+							</Avatar>
+							<div>
+								<div className="font-medium">{item.user.name}</div>
+								<div className="text-sm text-muted-foreground">
+									@{item.user.username} · {item.timestamp}
+								</div>
 							</div>
 						</div>
+						<Badge variant="outline">{item.module}</Badge>
 					</div>
-					<Badge variant="outline">{item.module}</Badge>
-				</div>
+				</Link>
 			</CardHeader>
 			<CardContent className="p-4">
 				<Link href={`/posts/${item.id}`} className="block">
@@ -74,6 +76,28 @@ export default function FeedItem({ itemId }: { itemId: string }) {
 						{item.title}
 					</h3>
 				</Link>
+
+				{item.files && item.files.length > 0 && (
+					<div className="space-y-2">
+						{item.files.map((file) => (
+							<a
+								key={file.id}
+								className="flex items-center gap-2 p-2 rounded-md border bg-muted/50 hover:bg-muted transition-colors"
+								href={file.file_url}
+								target="_blank"
+								rel="noreferrer"
+							>
+								<FileText className="h-4 w-4 text-muted-foreground" />
+								<span className="text-sm font-medium flex-1 truncate">{file.file_name}</span>
+								<div className="ml-auto flex items-center">
+									<Badge variant="outline" className="text-[10px] px-2 py-0 h-5">
+										v{file.version}
+									</Badge>
+								</div>
+							</a>
+						))}
+					</div>
+				)}
 			</CardContent>
 			<CardFooter className="p-4 pt-0 flex justify-between">
 				<div className="flex gap-4">

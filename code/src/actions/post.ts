@@ -4,7 +4,7 @@ import { z } from 'zod'
 import { supabase } from '@/lib/supabase'
 import { postSchema } from '@/lib/validations'
 import { auth } from './auth'
-import { Comment, Post, SimplePost } from '@/types/general'
+import { Comment, PostFile, Post, SimplePost } from '@/types/general'
 import { formatTimestamp } from '@/lib/utils'
 import { PostgrestSingleResponse } from '@supabase/supabase-js'
 import { PostgrestFilterBuilder } from '@supabase/postgrest-js'
@@ -257,6 +257,16 @@ export async function getPost(postId: string) {
 		.eq('user_id', loggedUser?.user.id)
 		.single()
 
+	const postFiles: PostgrestSingleResponse<PostFile[]> = await supabase
+		.from('files')
+		.select('id, file_name, file_url, version')
+		.eq('post_id', postId)
+
+	if (postFiles.error) {
+		console.error('Error fetching files:', postFiles.error)
+		return { success: false, error: 'Beim Abrufen der Dateien ist ein Fehler aufgetreten.' }
+	}
+
 	return {
 		success: true,
 		data: {
@@ -272,6 +282,7 @@ export async function getPost(postId: string) {
 			comments: postComments.data[0]?.count || 0,
 			timestamp: formatTimestamp(data.created_at),
 			liked: !!isLiked.data,
+			files: postFiles.data,
 		} as Post,
 	}
 }
