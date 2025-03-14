@@ -23,7 +23,7 @@ export async function uploadFile(
 ): Promise<UploadResult> {
 	try {
 		if (!file) {
-			return { success: false, error: 'Keine Datei bereitgestellt' }
+			return { success: false, error: 'No file provided' }
 		}
 
 		// Create a unique file path
@@ -36,7 +36,7 @@ export async function uploadFile(
 		const fileBuffer = new Uint8Array(arrayBuffer)
 
 		// Upload file to Supabase Storage
-		const { error } = await supabase.storage.from('studygram').upload(filePath, fileBuffer, {
+		const { data, error } = await supabase.storage.from('studygram').upload(filePath, fileBuffer, {
 			cacheControl: '3600',
 			upsert: false,
 			contentType: file.type,
@@ -61,7 +61,7 @@ export async function uploadFile(
 		console.error('Upload error:', error)
 		return {
 			success: false,
-			error: error instanceof Error ? error.message : 'Ein unbekannter Fehler ist aufgetreten',
+			error: error instanceof Error ? error.message : 'An unknown error occurred',
 		}
 	}
 }
@@ -78,7 +78,7 @@ export async function deleteFile(filePath: string): Promise<{ success: boolean; 
 	} catch (error) {
 		return {
 			success: false,
-			error: error instanceof Error ? error.message : 'Ein unbekannter Fehler ist aufgetreten',
+			error: error instanceof Error ? error.message : 'An unknown error occurred',
 		}
 	}
 }

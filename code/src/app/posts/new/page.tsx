@@ -27,11 +27,14 @@ import { postSchema } from '@/lib/validations'
 import { Module } from '@/types/general'
 import { supabase } from '@/lib/supabase'
 import { createPost } from '@/actions/post'
+import { FileUploader } from '@/components/file-uploader'
+import { useAuth } from '@/hooks/use-auth'
 
 export default function UploadPage() {
 	const router = useRouter()
 	const [isSubmitting, setIsSubmitting] = useState(false)
 	const [modules, setModules] = useState<Module[]>([])
+	const { user } = useAuth()
 
 	useEffect(() => {
 		const fetchModules = async () => {
@@ -49,22 +52,21 @@ export default function UploadPage() {
 		defaultValues: {
 			title: '',
 			module: '',
-			// files: [],
+			files: [],
 		},
 	})
 
 	async function onSubmit(values: z.infer<typeof postSchema>) {
-		setIsSubmitting(true)
-
-		const { data, error } = await createPost(values)
-		console.log(data)
-		if (error) {
-			console.error(error)
-			return
-		}
-
-		setIsSubmitting(false)
-		router.push(`/`)
+		console.log(values)
+		// setIsSubmitting(true)
+		// const { data, error } = await createPost(values)
+		// console.log(data)
+		// if (error) {
+		// 	console.error(error)
+		// 	return
+		// }
+		// setIsSubmitting(false)
+		// router.push(`/`)
 	}
 
 	return (
@@ -128,14 +130,24 @@ export default function UploadPage() {
 							)}
 						/>
 
-						{/* <FormField
+						<FormField
 							control={form.control}
 							name="files"
 							render={({ field }) => (
 								<FormItem>
 									<FormLabel>Dateien</FormLabel>
 									<FormControl>
-										<FileUploader value={field.value} onChange={field.onChange} />
+										{user ? (
+											<FileUploader
+												value={field.value}
+												onChange={field.onChange}
+												folder={`posts/${user.id}`}
+											/>
+										) : (
+											<div className="flex flex-col space-y-2">
+												<div className="h-54 w-full animate-pulse rounded-md bg-muted"></div>
+											</div>
+										)}
 									</FormControl>
 									<FormDescription>
 										Laden Sie PDFs, Dokumente, Präsentationen oder Bilder hoch (max. 10MB pro Datei)
@@ -143,7 +155,7 @@ export default function UploadPage() {
 									<FormMessage />
 								</FormItem>
 							)}
-						/> */}
+						/>
 
 						<Button type="submit" disabled={isSubmitting} className="w-full">
 							{isSubmitting ? 'Wird hochgeladen...' : 'Materialien hochladen'}

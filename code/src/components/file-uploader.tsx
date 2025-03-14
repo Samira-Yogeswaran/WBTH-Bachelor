@@ -3,39 +3,26 @@
 import { useState, useCallback } from 'react'
 import { useDropzone } from 'react-dropzone'
 import { Button } from '@/components/ui/button'
-import { Progress } from '@/components/ui/progress'
-import {
-	X,
-	Upload,
-	File,
-	FileText,
-	ImageIcon,
-	FileArchive,
-	Clock,
-	Check,
-	ArrowDownToLine,
-} from 'lucide-react'
+import { X, Upload, FileText, CheckCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import Image from 'next/image'
+import { uploadFile, deleteFile } from '@/actions/post'
+import { useAuth } from '@/hooks/use-auth'
 
-type FileVersion = {
+type FileItem = {
 	id: string
 	file: File
-	uploadedAt: Date
-}
-
-type FileWithVersions = {
-	name: string
-	versions: FileVersion[]
-	currentVersion: FileVersion
+	publicUrl?: string
+	filePath?: string
+	error?: string
+	uploaded?: boolean
 }
 
 type FileUploaderProps = {
-	value: FileWithVersions[]
-	onChange: (files: FileWithVersions[]) => void
+	value: FileItem[]
+	onChange: (files: FileItem[]) => void
 	maxFiles?: number
 	maxSize?: number
+	folder?: string
 }
 
 export function FileUploader({
@@ -43,81 +30,88 @@ export function FileUploader({
 	onChange,
 	maxFiles = 5,
 	maxSize = 10 * 1024 * 1024, // 10MB
+	folder = 'uploads',
 }: FileUploaderProps) {
+	const [uploadedFiles, setUploadedFiles] = useState<FileItem[]>([])
 	const [isUploading, setIsUploading] = useState(false)
+	const { user } = useAuth()
+
+	const uploadFileToSupabase = async (file: File, fileId: string) => {
+		if (!user) {
+			console.error('User must be logged in to upload files')
+			return
+		}
+
+		try {
+			// Upload to Supabase
+			const result = await uploadFile(file, user.id, folder)
+
+			if (!result.success) {
+				throw new Error(result.error || 'Upload failed')
+			}
+
+			// Update file with the result
+			const updatedFiles = uploadedFiles.map((f) => {
+				if (f.id === fileId) {
+					return {
+						...f,
+						publicUrl: result.publicUrl,
+						filePath: result.filePath,
+						uploaded: true, // Mark as successfully uploaded
+					}
+				}
+				return f
+			})
+
+			onChange(updatedFiles)
+			console.log(`File ${file.name} uploaded successfully`)
+		} catch (error) {
+			console.error('Upload error:', error)
+
+			// Update file with error
+			onChange(
+				value.map((f) => {
+					if (f.id === fileId) {
+						return {
+							...f,
+							error: error instanceof Error ? error.message : 'Upload failed',
+						}
+					}
+					return f
+				})
+			)
+		}
+	}
 
 	const onDrop = useCallback(
-		(acceptedFiles: File[]) => {
-			if (value.length + acceptedFiles.length > maxFiles) {
-				alert(`You can only upload up to ${maxFiles} files`)
+		async (acceptedFiles: File[]) => {
+			if (uploadedFiles.length + acceptedFiles.length > maxFiles) {
+				console.error(`You can only upload up to ${maxFiles} files`)
 				return
 			}
 
 			setIsUploading(true)
 
-			// Convert accepted files to our format with versions
-			const newFiles = acceptedFiles.map((file) => {
-				const existingFile = value.find((f) => f.name === file.name)
-				const newVersion: FileVersion = {
-					id: `file-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-					file,
-					uploadedAt: new Date(),
-				}
+			// Convert accepted files to our format
+			const newFiles = acceptedFiles.map((file) => ({
+				id: `file-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+				file,
+			}))
 
-				if (existingFile) {
-					// Add new version to existing file
-					return {
-						...existingFile,
-						versions: [...existingFile.versions, newVersion],
-						currentVersion: newVersion,
-					}
-				} else {
-					// Create new file entry
-					return {
-						name: file.name,
-						versions: [newVersion],
-						currentVersion: newVersion,
-					}
-				}
-			})
+			// Add new files to existing ones
+			const updatedFiles = [...uploadedFiles, ...newFiles]
+			console.log('New files:', updatedFiles)
 
-			// Merge new files with existing ones
-			const updatedFiles = value.map((file) => {
-				const updatedFile = newFiles.find((f) => f.name === file.name)
-				return updatedFile || file
-			})
+			setUploadedFiles(updatedFiles)
 
-			const filesToAdd = newFiles.filter((file) => !value.some((f) => f.name === file.name))
-			onChange([...updatedFiles, ...filesToAdd])
+			// Upload each file to Supabase
+			for (const fileItem of newFiles) {
+				await uploadFileToSupabase(fileItem.file, fileItem.id)
+			}
 
-			// Simulate upload progress
-			const progressIntervals = newFiles.map((file) => {
-				return setInterval(() => {
-					onChange((prevFiles) => {
-						return prevFiles.map((f) => {
-							if (f.name === file.name) {
-								const progress = Math.min(f.currentVersion.file.progress + 10 || 0, 100)
-								return {
-									...f,
-									currentVersion: {
-										...f.currentVersion,
-										file: Object.assign(f.currentVersion.file, { progress }),
-									},
-								}
-							}
-							return f
-						})
-					})
-				}, 300)
-			})
-
-			// Clear intervals after "upload" completes
-			setTimeout(() => {
-				progressIntervals.forEach((interval) => clearInterval(interval))
-				setIsUploading(false)
-			}, 3000)
+			setIsUploading(false)
 		},
-		[value, onChange, maxFiles]
+		[uploadedFiles, maxFiles]
 	)
 
 	const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -137,30 +131,19 @@ export function FileUploader({
 		},
 	})
 
-	const removeFile = (fileName: string) => {
-		onChange(value.filter((file) => file.name !== fileName))
-	}
+	const removeFile = async (fileId: string) => {
+		const fileToRemove = value.find((file) => file.id === fileId)
 
-	const getFileIcon = (file: File) => {
-		if (file.type.startsWith('image/')) return <ImageIcon className="h-6 w-6" />
-		if (file.type.includes('pdf')) return <FileText className="h-6 w-6" />
-		if (file.type.includes('zip') || file.type.includes('archive'))
-			return <FileArchive className="h-6 w-6" />
-		return <File className="h-6 w-6" />
-	}
+		if (fileToRemove && fileToRemove.filePath) {
+			try {
+				await deleteFile(fileToRemove.filePath)
+				console.log(`File ${fileToRemove.file.name} deleted successfully`)
+			} catch (error) {
+				console.error('Delete error:', error)
+			}
+		}
 
-	const switchVersion = (fileName: string, versionId: string) => {
-		onChange(
-			value.map((file) => {
-				if (file.name === fileName) {
-					const newCurrentVersion = file.versions.find((v) => v.id === versionId)
-					if (newCurrentVersion) {
-						return { ...file, currentVersion: newCurrentVersion }
-					}
-				}
-				return file
-			})
-		)
+		onChange(value.filter((file) => file.id !== fileId))
 	}
 
 	return (
@@ -190,98 +173,37 @@ export function FileUploader({
 				</div>
 			</div>
 
-			{value.length > 0 && (
+			{uploadedFiles.length > 0 && (
 				<div className="space-y-2">
 					<h4 className="text-sm font-medium">
-						Hochgeladene Dateien ({value.length}/{maxFiles})
+						Hochgeladene Dateien ({uploadedFiles.length}/{maxFiles})
 					</h4>
 					<ul className="space-y-2">
-						{value.map((fileItem) => (
+						{uploadedFiles.map((fileItem) => (
 							<li
-								key={fileItem.name}
+								key={fileItem.id}
 								className="flex items-center gap-3 p-2 rounded-md border bg-muted/50"
 							>
-								{fileItem.currentVersion.file.type.startsWith('image/') ? (
-									<div className="h-10 w-10 rounded overflow-hidden relative">
-										<Image
-											src={URL.createObjectURL(fileItem.currentVersion.file)}
-											alt={fileItem.name}
-											fill
-											className="object-cover"
-											sizes="40px"
-										/>
-									</div>
+								{fileItem.uploaded ? (
+									<CheckCircle className="h-6 w-6 text-green-500" />
 								) : (
-									getFileIcon(fileItem.currentVersion.file)
+									<FileText className="h-6 w-6" />
 								)}
 								<div className="flex-1 min-w-0">
-									<p className="text-sm font-medium truncate">{fileItem.name}</p>
+									<p className="text-sm font-medium truncate">{fileItem.file.name}</p>
 									<p className="text-xs text-muted-foreground">
-										{(fileItem.currentVersion.file.size / 1024).toFixed(1)} KB
+										{(fileItem.file.size / 1024).toFixed(1)} KB
+										{fileItem.uploaded && ' • Erfolgreich hochgeladen'}
 									</p>
-									{fileItem.currentVersion.file.progress < 100 && (
-										<Progress value={fileItem.currentVersion.file.progress} className="h-1 mt-1" />
+									{fileItem.error && (
+										<p className="text-xs text-destructive mt-1">{fileItem.error}</p>
 									)}
 								</div>
-								<Popover>
-									<PopoverTrigger asChild>
-										<Button variant="outline" size="sm">
-											<Clock className="h-4 w-4 mr-2" />
-											Versionen ({fileItem.versions.length})
-										</Button>
-									</PopoverTrigger>
-									<PopoverContent className="w-80">
-										<div className="space-y-3">
-											<h5 className="text-sm font-semibold">Dateiversionen</h5>
-											<ul className="max-h-48 overflow-auto space-y-1">
-												{fileItem.versions.map((version, index) => (
-													<li
-														key={version.id}
-														className="flex justify-between items-center py-2 px-2 rounded-md text-sm hover:bg-muted transition-colors"
-													>
-														<div className="flex items-center space-x-2">
-															<span className="text-xs font-medium bg-primary/10 text-primary rounded-full px-2 py-0.5">
-																v{fileItem.versions.length - index}
-															</span>
-															<span className="text-muted-foreground text-xs">
-																{version.uploadedAt.toLocaleString(undefined, {
-																	month: 'short',
-																	day: 'numeric',
-																	hour: '2-digit',
-																	minute: '2-digit',
-																})}
-															</span>
-														</div>
-														<div className="flex items-center space-x-2">
-															{version.id === fileItem.currentVersion.id && (
-																<span className="text-xs text-primary font-medium">Aktuell</span>
-															)}
-															<Button
-																variant="ghost"
-																size="sm"
-																className="h-7 px-2 text-xs"
-																onClick={() => switchVersion(fileItem.name, version.id)}
-																disabled={version.id === fileItem.currentVersion.id}
-															>
-																{version.id === fileItem.currentVersion.id ? (
-																	<Check className="h-3 w-3 mr-1" />
-																) : (
-																	<ArrowDownToLine className="h-3 w-3 mr-1" />
-																)}
-																{version.id === fileItem.currentVersion.id ? 'Aktiv' : 'Wechseln'}
-															</Button>
-														</div>
-													</li>
-												))}
-											</ul>
-										</div>
-									</PopoverContent>
-								</Popover>
 								<Button
 									variant="ghost"
 									size="icon"
 									className="h-8 w-8 text-muted-foreground hover:text-destructive"
-									onClick={() => removeFile(fileItem.name)}
+									onClick={() => removeFile(fileItem.id)}
 									disabled={isUploading}
 								>
 									<X className="h-4 w-4" />
