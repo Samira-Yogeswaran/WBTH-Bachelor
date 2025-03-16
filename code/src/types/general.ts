@@ -25,6 +25,7 @@ export type SimplePost = {
 	created_at: string
 	module_id: string
 	user_id: string
+	files: PostFile[]
 }
 
 export type Comment = {
@@ -43,4 +44,11 @@ export type PostFile = {
 	file_name: string
 	file_url: string
 	version: number
+}
+
+export type UploadResult = {
+	success: boolean
+	filePath?: string
+	publicUrl?: string
+	error?: string
 }

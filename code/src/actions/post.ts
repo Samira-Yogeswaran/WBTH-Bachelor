@@ -4,125 +4,10 @@ import { z } from 'zod'
 import { supabase } from '@/lib/supabase'
 import { postSchema } from '@/lib/validations'
 import { auth } from './auth'
-import { Comment, PostFile, Post, SimplePost } from '@/types/general'
+import { Comment, PostFile, Post, SimplePost, UploadResult } from '@/types/general'
 import { formatTimestamp } from '@/lib/utils'
 import { PostgrestSingleResponse } from '@supabase/supabase-js'
 import { PostgrestFilterBuilder } from '@supabase/postgrest-js'
-
-type UploadResult = {
-	success: boolean
-	filePath?: string
-	publicUrl?: string
-	error?: string
-}
-
-export async function uploadFile(
-	file: File,
-	userId: string,
-	folder = 'uploads'
-): Promise<UploadResult> {
-	try {
-		if (!file) {
-			return { success: false, error: 'No file provided' }
-		}
-
-		// Create a unique file path
-		const timestamp = Date.now()
-		const fileName = file.name
-		const filePath = `${folder}/${userId}/${timestamp}_${fileName}`
-
-		// Convert File to ArrayBuffer
-		const arrayBuffer = await file.arrayBuffer()
-		const fileBuffer = new Uint8Array(arrayBuffer)
-
-		// Upload file to Supabase Storage
-		const { data, error } = await supabase.storage.from('studygram').upload(filePath, fileBuffer, {
-			cacheControl: '3600',
-			upsert: false,
-			contentType: file.type,
-		})
-
-		if (error) {
-			console.error('Supabase storage error:', error)
-			return { success: false, error: error.message }
-		}
-
-		// Get public URL for the uploaded file
-		const {
-			data: { publicUrl },
-		} = supabase.storage.from('studygram').getPublicUrl(filePath)
-
-		return {
-			success: true,
-			filePath,
-			publicUrl,
-		}
-	} catch (error) {
-		console.error('Upload error:', error)
-		return {
-			success: false,
-			error: error instanceof Error ? error.message : 'An unknown error occurred',
-		}
-	}
-}
-
-export async function deleteFile(filePath: string): Promise<{ success: boolean; error?: string }> {
-	try {
-		const { error } = await supabase.storage.from('studygram').remove([filePath])
-
-		if (error) {
-			return { success: false, error: error.message }
-		}
-
-		return { success: true }
-	} catch (error) {
-		return {
-			success: false,
-			error: error instanceof Error ? error.message : 'An unknown error occurred',
-		}
-	}
-}
-
-export async function createPost(postData: z.infer<typeof postSchema>) {
-	try {
-		const validatedData = postSchema.parse(postData)
-		const session = await auth()
-		const userId = session?.user.id
-
-		const { data, error } = await supabase
-			.from('posts')
-			.insert({
-				title: validatedData.title,
-				module_id: validatedData.module,
-				user_id: userId,
-			})
-			.select()
-
-		if (error) {
-			return {
-				success: false,
-				error: error.message,
-			}
-		}
-
-		return {
-			success: true,
-			data,
-		}
-	} catch (error) {
-		if (error instanceof z.ZodError) {
-			return {
-				success: false,
-				error: error.errors.map((e) => e.message).join(', '),
-			}
-		}
-
-		return {
-			success: false,
-			error: 'Ein unerwarteter Fehler ist aufgetreten',
-		}
-	}
-}
 
 export async function getPosts({
 	moduleId = 'all',
@@ -133,20 +18,12 @@ export async function getPosts({
 	searchQuery?: string
 	sortBy?: 'recent' | 'popular' | 'comments'
 }) {
-	let query = supabase.from('posts').select(`
-		id,
-		title,
-		created_at,
-		user_id,
-		module_id
-	`) as PostgrestFilterBuilder<any, any, SimplePost[], 'posts', unknown>
+	let query = supabase.rpc('search_posts', {
+		search_text: searchQuery.trim() || '', // or else the stored procedure will return all posts
+	}) as PostgrestFilterBuilder<any, any, SimplePost[], 'posts', unknown>
 
 	if (moduleId !== 'all') {
 		query = query.eq('module_id', moduleId)
-	}
-
-	if (searchQuery) {
-		query = query.ilike('title', `%${searchQuery}%`)
 	}
 
 	if (sortBy === 'recent') {
@@ -284,6 +161,136 @@ export async function getPost(postId: string) {
 			liked: !!isLiked.data,
 			files: postFiles.data,
 		} as Post,
+	}
+}
+
+export async function createPost(values: z.infer<typeof postSchema>) {
+	try {
+		const validatedData = postSchema.parse(values)
+		const session = await auth()
+		const userId = session?.user.id
+
+		if (!userId) {
+			console.error('User not found')
+			return { success: false, error: 'Benutzer nicht gefunden' }
+		}
+
+		const uploadedFiles = await Promise.all(
+			validatedData.files.map(async (file) => {
+				const { publicUrl } = await uploadFile(file.file, userId, 'posts')
+
+				return {
+					file_name: file.file.name,
+					file_url: publicUrl,
+					version: 1, // starts at version 1
+				}
+			})
+		)
+
+		const { data: postData, error: postError } = await supabase
+			.from('posts')
+			.insert({
+				title: validatedData.title,
+				module_id: validatedData.module,
+				user_id: userId,
+			})
+			.select()
+
+		if (postError) {
+			console.error('Error creating post:', postError)
+			return { success: false, error: 'Beim Erstellen des Beitrags ist ein Fehler aufgetreten.' }
+		}
+
+		const { error: filesError } = await supabase.from('files').insert(
+			uploadedFiles.map((file) => ({
+				post_id: postData[0].id,
+				...file,
+			}))
+		)
+
+		if (filesError) {
+			console.error('Error creating files:', filesError)
+			return { success: false, error: 'Beim Erstellen der Dateien ist ein Fehler aufgetreten.' }
+		}
+
+		return { success: true, data: postData[0] as SimplePost }
+	} catch (error) {
+		if (error instanceof z.ZodError) {
+			return {
+				success: false,
+				error: error.errors.map((e) => e.message).join(', '),
+			}
+		}
+		return {
+			success: false,
+			error: 'Ein unerwarteter Fehler ist aufgetreten',
+		}
+	}
+}
+
+export async function uploadFile(
+	file: File,
+	userId: string,
+	folder: string
+): Promise<UploadResult> {
+	try {
+		if (!file) {
+			return { success: false, error: 'No file provided' }
+		}
+
+		// Create a unique file path
+		const timestamp = Date.now()
+		const fileName = file.name
+		const filePath = `${folder}/${userId}/${timestamp}_${fileName}`
+
+		// Convert File to ArrayBuffer
+		const arrayBuffer = await file.arrayBuffer()
+		const fileBuffer = new Uint8Array(arrayBuffer)
+
+		// Upload file to Supabase Storage
+		const { error } = await supabase.storage.from('studygram').upload(filePath, fileBuffer, {
+			cacheControl: '3600',
+			upsert: false,
+			contentType: file.type,
+		})
+
+		if (error) {
+			console.error('Supabase storage error:', error)
+			return { success: false, error: error.message }
+		}
+
+		const {
+			data: { publicUrl },
+		} = supabase.storage.from('studygram').getPublicUrl(filePath)
+
+		return {
+			success: true,
+			filePath,
+			publicUrl,
+		}
+	} catch (error) {
+		console.error('Upload error:', error)
+		return {
+			success: false,
+			error: error instanceof Error ? error.message : 'An unknown error occurred',
+		}
+	}
+}
+
+export async function deleteFile(filePath: string): Promise<{ success: boolean; error?: string }> {
+	try {
+		const { error } = await supabase.storage.from('studygram').remove([filePath])
+
+		if (error) {
+			return { success: false, error: error.message }
+		}
+
+		return { success: true }
+	} catch (error) {
+		return {
+			success: false,
+			error: error instanceof Error ? error.message : 'An unknown error occurred',
+		}
 	}
 }
 

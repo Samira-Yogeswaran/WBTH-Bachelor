@@ -32,9 +32,10 @@ import { useAuth } from '@/hooks/use-auth'
 
 export default function UploadPage() {
 	const router = useRouter()
-	const [isSubmitting, setIsSubmitting] = useState(false)
-	const [modules, setModules] = useState<Module[]>([])
 	const { user } = useAuth()
+	const [modules, setModules] = useState<Module[]>([])
+	const [isSubmitting, setIsSubmitting] = useState(false)
+	const [createError, setCreateError] = useState<string | null>(null)
 
 	useEffect(() => {
 		const fetchModules = async () => {
@@ -57,16 +58,18 @@ export default function UploadPage() {
 	})
 
 	async function onSubmit(values: z.infer<typeof postSchema>) {
-		console.log(values)
-		// setIsSubmitting(true)
-		// const { data, error } = await createPost(values)
-		// console.log(data)
-		// if (error) {
-		// 	console.error(error)
-		// 	return
-		// }
-		// setIsSubmitting(false)
-		// router.push(`/`)
+		setIsSubmitting(true)
+		setCreateError(null)
+
+		const { error } = await createPost(values)
+		if (error) {
+			setCreateError(error)
+			setIsSubmitting(false)
+			return
+		}
+
+		setIsSubmitting(false)
+		router.push(`/`)
 	}
 
 	return (
@@ -78,6 +81,12 @@ export default function UploadPage() {
 						Teilen Sie Ihre Notizen, Anleitungen und Ressourcen mit der Community
 					</p>
 				</div>
+
+				{createError && (
+					<div className="bg-destructive/10 text-destructive p-3 rounded-md border border-destructive">
+						{createError}
+					</div>
+				)}
 
 				<Form {...form}>
 					<form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
@@ -138,11 +147,7 @@ export default function UploadPage() {
 									<FormLabel>Dateien</FormLabel>
 									<FormControl>
 										{user ? (
-											<FileUploader
-												value={field.value}
-												onChange={field.onChange}
-												folder={`posts/${user.id}`}
-											/>
+											<FileUploader value={field.value} onChange={field.onChange} />
 										) : (
 											<div className="flex flex-col space-y-2">
 												<div className="h-54 w-full animate-pulse rounded-md bg-muted"></div>

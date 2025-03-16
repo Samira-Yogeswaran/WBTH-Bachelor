@@ -25,9 +25,9 @@ export function ModuleTabs({
 				const { data } = await supabase.from('modules').select('id, name')
 
 				if (data) {
-					setModules([{ id: 'all', name: 'All' }, ...data])
+					setModules([{ id: 'all', name: 'Alle' }, ...data])
 				} else {
-					setModules([{ id: 'all', name: 'All' }])
+					setModules([{ id: 'all', name: 'Alle' }])
 				}
 			} catch (error) {
 				console.error('Error fetching modules:', error)

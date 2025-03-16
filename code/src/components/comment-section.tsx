@@ -59,8 +59,6 @@ export default function CommentSection({ postId, username }: { postId: string; u
 		}
 	}
 
-	console.log(comments)
-
 	return (
 		<div>
 			<div className="flex gap-4">
