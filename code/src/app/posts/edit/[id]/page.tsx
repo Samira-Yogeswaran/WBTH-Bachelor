@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -24,18 +24,33 @@ import {
 	SelectValue,
 } from '@/components/ui/select'
 import { postSchema } from '@/lib/validations'
-import { Module } from '@/types/general'
+import { Module, Post } from '@/types/general'
 import { supabase } from '@/lib/supabase'
-import { createPost } from '@/actions/post'
+import { getPost, updatePost } from '@/actions/post'
 import { FileUploader } from '@/components/file-uploader'
 import { useAuth } from '@/hooks/use-auth'
+import { Loader2 } from 'lucide-react'
 
-export default function CreatePost() {
+export default function EditPost() {
+	const params = {
+		id: '4f6a131d-724f-4560-ad96-233ad471bd10',
+	}
 	const router = useRouter()
 	const { user } = useAuth()
 	const [modules, setModules] = useState<Module[]>([])
 	const [isSubmitting, setIsSubmitting] = useState(false)
-	const [createError, setCreateError] = useState<string | null>(null)
+	const [isLoading, setIsLoading] = useState(true)
+	const [error, setError] = useState<string | null>(null)
+	const [, setPost] = useState<Post | null>(null)
+
+	const form = useForm<z.infer<typeof postSchema>>({
+		resolver: zodResolver(postSchema),
+		defaultValues: {
+			title: '',
+			module: '',
+			files: [],
+		},
+	})
 
 	useEffect(() => {
 		const fetchModules = async () => {
@@ -48,43 +63,97 @@ export default function CreatePost() {
 		fetchModules()
 	}, [])
 
-	const form = useForm<z.infer<typeof postSchema>>({
-		resolver: zodResolver(postSchema),
-		defaultValues: {
-			title: '',
-			module: '',
-			files: [],
-		},
-	})
+	useEffect(() => {
+		const fetchPost = async () => {
+			setIsLoading(true)
+			setError(null)
+
+			try {
+				const result = await getPost(params.id)
+
+				if (!result.success || !result.data) {
+					setError(result.error || 'Beitrag konnte nicht geladen werden')
+					setIsLoading(false)
+					return
+				}
+
+				setPost(result.data)
+
+				// Get module ID from name
+				const moduleItem = modules.find((m) => m.name === result.data.module)
+
+				// Format files for form
+				const formattedFiles = result.data.files.map((file) => ({
+					id: file.id,
+					file_name: file.file_name,
+					file_url: file.file_url,
+				}))
+
+				form.reset({
+					title: result.data.title,
+					module: moduleItem?.id || '',
+					files: formattedFiles,
+				})
+
+				setIsLoading(false)
+			} catch (err) {
+				console.error('Error fetching post:', err)
+				setError('Ein Fehler ist beim Laden des Beitrags aufgetreten')
+				setIsLoading(false)
+			}
+		}
+
+		if (modules.length > 0) {
+			fetchPost()
+		}
+	}, [params.id, modules, form])
 
 	async function onSubmit(values: z.infer<typeof postSchema>) {
 		setIsSubmitting(true)
-		setCreateError(null)
+		setError(null)
 
-		const { error } = await createPost(values)
-		if (error) {
-			setCreateError(error)
+		try {
+			const result = await updatePost(params.id, values)
+
+			if (!result.success) {
+				setError(result.error || 'Ein Fehler ist beim Aktualisieren des Beitrags aufgetreten')
+				setIsSubmitting(false)
+				return
+			}
+
 			setIsSubmitting(false)
-			return
+			router.push('/profile')
+		} catch (err) {
+			console.error('Error updating post:', err)
+			setError('Ein unerwarteter Fehler ist aufgetreten')
+			setIsSubmitting(false)
 		}
+	}
 
-		setIsSubmitting(false)
-		router.push(`/`)
+	if (isLoading) {
+		return (
+			<div className="flex justify-center items-center py-10">
+				<Loader2 className="h-6 w-6 mr-2 animate-spin" />
+				<span>Beitrag wird geladen...</span>
+			</div>
+		)
+	}
+
+	if (error) {
+		return <div className="text-center text-red-500 py-4">{error}</div>
 	}
 
 	return (
 		<div className="px-8 py-6 max-w-[1000px] mx-auto">
 			<div className="space-y-6">
 				<div>
-					<h1 className="text-2xl font-bold">Neuer Beitrag</h1>
-					<p className="text-muted-foreground">
-						Teilen Sie Ihre Notizen, Anleitungen und Ressourcen mit der Community
-					</p>
+					<h1 className="text-2xl font-bold">Beitrag bearbeiten</h1>
+					<p className="text-muted-foreground">Aktualisieren Sie Ihre geteilten Materialien</p>
 				</div>
 
-				{createError && (
+				{error && (
 					<div className="bg-destructive/10 text-destructive p-3 rounded-md border border-destructive">
-						{createError}
+						{error}
 					</div>
 				)}
 
@@ -114,7 +183,7 @@ export default function CreatePost() {
 								<FormItem>
 									<FormLabel>Module</FormLabel>
 									<FormControl>
-										<Select onValueChange={field.onChange} defaultValue={field.value}>
+										<Select onValueChange={field.onChange} value={field.value}>
 											<SelectTrigger className="w-full">
 												<SelectValue
 													placeholder={
@@ -163,7 +232,7 @@ export default function CreatePost() {
 						/>
 
 						<Button type="submit" disabled={isSubmitting} className="w-full">
-							{isSubmitting ? 'Wird hochgeladen...' : 'Materialien hochladen'}
+							{isSubmitting ? 'Wird aktualisiert...' : 'Beitrag aktualisieren'}
 						</Button>
 					</form>
 				</Form>

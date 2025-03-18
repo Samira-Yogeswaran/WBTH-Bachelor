@@ -49,13 +49,13 @@ export const authOptions = {
 			if (token.sub) {
 				const { data } = await supabase
 					.from('users')
-					.select('first_name, last_name')
+					.select('firstname, lastname')
 					.eq('id', token.sub)
 					.single()
 
 				if (data) {
-					session.user.firstName = data.first_name
-					session.user.lastName = data.last_name
+					session.user.firstName = data.firstname
+					session.user.lastName = data.lastname
 				}
 			}
 

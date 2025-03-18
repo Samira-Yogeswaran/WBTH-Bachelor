@@ -18,6 +18,15 @@ export const loginSchema = z.object({
 	password: z.string().min(6, { message: 'Passwort muss mindestens 6 Zeichen lang sein' }),
 })
 
+export const profileFormSchema = z.object({
+	firstName: z.string().min(2, {
+		message: 'Vorname ist erforderlich.',
+	}),
+	lastName: z.string().min(2, {
+		message: 'Nachname ist erforderlich.',
+	}),
+})
+
 export const postSchema = z.object({
 	title: z.string().min(5, { message: 'Titel muss mindestens 5 Zeichen lang sein' }),
 	module: z.string().nonempty({ message: 'Bitte wählen Sie ein Modul aus' }),

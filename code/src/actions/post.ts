@@ -228,6 +228,121 @@ export async function createPost(values: z.infer<typeof postSchema>) {
 	}
 }
 
+export async function updatePost(postId: string, values: z.infer<typeof postSchema>) {
+	try {
+		const validatedData = postSchema.parse(values)
+		const session = await auth()
+		const userId = session?.user.id
+
+		if (!userId) {
+			console.error('User not found')
+			return { success: false, error: 'Benutzer nicht gefunden' }
+		}
+
+		// Check if the post belongs to the user
+		const { data: post, error: postError } = await supabase
+			.from('posts')
+			.select('id, user_id')
+			.eq('id', postId)
+			.single()
+
+		if (postError || !post) {
+			console.error('Error fetching post:', postError)
+			return { success: false, error: 'Beitrag nicht gefunden' }
+		}
+
+		if (post.user_id !== userId) {
+			return { success: false, error: 'Sie sind nicht berechtigt, diesen Beitrag zu bearbeiten' }
+		}
+
+		// Get existing files
+		const { data: existingFiles, error: filesError } = await supabase
+			.from('files')
+			.select('id, file_name, file_url')
+			.eq('post_id', postId)
+
+		if (filesError) {
+			console.error('Error fetching files:', filesError)
+			return { success: false, error: 'Beim Abrufen der Dateien ist ein Fehler aufgetreten.' }
+		}
+
+		// Find files to delete (files that exist in DB but not in the form submission)
+		const filesToDelete =
+			existingFiles?.filter(
+				(existingFile) =>
+					!validatedData.files.some((newFile) => 'id' in newFile && newFile.id === existingFile.id)
+			) || []
+
+		// Delete removed files from storage and database
+		for (const file of filesToDelete) {
+			const fileUrl = new URL(file.file_url)
+			const pathMatch = fileUrl.pathname.match(/\/storage\/v1\/object\/public\/studygram\/(.+)/)
+
+			if (pathMatch) {
+				const filePath = pathMatch[1]
+				await supabase.storage.from('studygram').remove([filePath])
+			}
+
+			await supabase.from('files').delete().eq('id', file.id)
+		}
+
+		// Upload new files
+		const newFiles = validatedData.files.filter((file) => !('id' in file))
+		const uploadedFiles = await Promise.all(
+			newFiles.map(async (file) => {
+				const { publicUrl } = await uploadFile(file.file, userId, 'posts')
+
+				return {
+					file_name: file.file.name,
+					file_url: publicUrl,
+					version: 1,
+					post_id: postId,
+				}
+			})
+		)
+
+		// Insert new files
+		if (uploadedFiles.length > 0) {
+			const { error: insertError } = await supabase.from('files').insert(uploadedFiles)
+
+			if (insertError) {
+				console.error('Error inserting files:', insertError)
+				return { success: false, error: 'Beim Hochladen der Dateien ist ein Fehler aufgetreten.' }
+			}
+		}
+
+		// Update post
+		const { error: updateError } = await supabase
+			.from('posts')
+			.update({
+				title: validatedData.title,
+				module_id: validatedData.module,
+			})
+			.eq('id', postId)
+
+		if (updateError) {
+			console.error('Error updating post:', updateError)
+			return {
+				success: false,
+				error: 'Beim Aktualisieren des Beitrags ist ein Fehler aufgetreten.',
+			}
+		}
+
+		return { success: true, data: { id: postId } }
+	} catch (error) {
+		if (error instanceof z.ZodError) {
+			return {
+				success: false,
+				error: error.errors.map((e) => e.message).join(', '),
+			}
+		}
+		return {
+			success: false,
+			error: 'Ein unerwarteter Fehler ist aufgetreten',
+		}
+	}
+}
+
 export async function uploadFile(
 	file: File,
 	userId: string,
@@ -410,4 +525,107 @@ export async function createComment(postId: string, content: string) {
 	}
 
 	return { success: true, data: commentWithUser as unknown as Comment }
+}
+
+export async function getPostsByUser() {
+	const session = await auth()
+	const userId = session?.user.id
+
+	const { data: posts, error } = await supabase
+		.from('posts')
+		.select('id, created_at')
+		.eq('user_id', userId)
+		.order('created_at', { ascending: false })
+
+	if (error) {
+		console.error('Error fetching posts:', error)
+		return { success: false, error: 'Beim Abrufen der Beiträge ist ein Fehler aufgetreten.' }
+	}
+
+	if (!posts || posts.length === 0) {
+		return { success: true, data: [] }
+	}
+
+	return { success: true, data: posts } as {
+		success: true
+		data: {
+			id: string
+			created_at: string
+		}[]
+	}
+}
+
+export async function deletePost(postId: string) {
+	try {
+		const session = await auth()
+		const userId = session?.user.id
+
+		if (!userId) {
+			return { success: false, error: 'Nicht authentifiziert' }
+		}
+
+		// Check if the post belongs to the user
+		const { data: post, error: postError } = await supabase
+			.from('posts')
+			.select('id, user_id')
+			.eq('id', postId)
+			.single()
+
+		if (postError || !post) {
+			console.error('Error fetching post:', postError)
+			return { success: false, error: 'Beitrag nicht gefunden' }
+		}
+
+		if (post.user_id !== userId) {
+			return { success: false, error: 'Sie sind nicht berechtigt, diesen Beitrag zu löschen' }
+		}
+
+		// Get files associated with the post to delete from storage later
+		const { data: files, error: filesError } = await supabase
+			.from('files')
+			.select('file_url')
+			.eq('post_id', postId)
+
+		if (filesError) {
+			console.error('Error fetching files:', filesError)
+			// Continue with post deletion even if file fetching fails
+		}
+
+		// Delete the post (this will cascade delete likes, comments, and file records)
+		const { error: deleteError } = await supabase.from('posts').delete().eq('id', postId)
+
+		if (deleteError) {
+			console.error('Error deleting post:', deleteError)
+			return { success: false, error: 'Beim Löschen des Beitrags ist ein Fehler aufgetreten' }
+		}
+
+		// Delete files from storage if any
+		if (files && files.length > 0) {
+			// Extract file paths from URLs
+			const filePaths = files
+				.map((file) => {
+					const url = new URL(file.file_url)
+					const pathMatch = url.pathname.match(/\/storage\/v1\/object\/public\/studygram\/(.+)/)
+					return pathMatch ? pathMatch[1] : null
+				})
+				.filter(Boolean) as string[]
+
+			if (filePaths.length > 0) {
+				const { error: storageError } = await supabase.storage.from('studygram').remove(filePaths)
+
+				if (storageError) {
+					console.error('Error deleting files from storage:', storageError)
+					// Post is already deleted, so return success anyway
+				}
+			}
+		}
+
+		return { success: true }
+	} catch (error) {
+		console.error('Delete post error:', error)
+		return {
+			success: false,
+			error: error instanceof Error ? error.message : 'Ein unerwarteter Fehler ist aufgetreten',
+		}
+	}
 }
