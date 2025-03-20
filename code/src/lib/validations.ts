@@ -32,10 +32,19 @@ export const postSchema = z.object({
 	module: z.string().nonempty({ message: 'Bitte wählen Sie ein Modul aus' }),
 	files: z
 		.array(
-			z.object({
-				id: z.string(),
-				file: z.instanceof(File, { message: 'Muss eine gültige Datei sein' }),
-			})
+			z.discriminatedUnion('type', [
+				z.object({
+					type: z.literal('new'),
+					id: z.string(),
+					file: z.instanceof(File, { message: 'Muss eine gültige Datei sein' }),
+				}),
+				z.object({
+					type: z.literal('existing'),
+					id: z.string(),
+					file_name: z.string(),
+					file_url: z.string(),
+				}),
+			])
 		)
 		.default([]),
 })

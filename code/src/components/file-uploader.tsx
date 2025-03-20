@@ -7,8 +7,11 @@ import { X, Upload, File, FileText, ImageIcon, FileArchive } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 type FileItem = {
+	type: 'new' | 'existing'
 	id: string
-	file: File
+	file?: File
+	file_name?: string
+	file_url?: string
 }
 
 type FileUploaderProps = {
@@ -24,6 +27,8 @@ export function FileUploader({
 	maxFiles = 5,
 	maxSize = 10 * 1024 * 1024, // 10MB
 }: FileUploaderProps) {
+	console.log(value)
+
 	const onDrop = useCallback(
 		(acceptedFiles: File[]) => {
 			if (value.length + acceptedFiles.length > maxFiles) {
@@ -33,6 +38,7 @@ export function FileUploader({
 
 			// Convert accepted files to our format
 			const newFiles = acceptedFiles.map((file) => ({
+				type: 'new' as const,
 				id: `file-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
 				file,
 			}))
@@ -65,10 +71,12 @@ export function FileUploader({
 		onChange(value.filter((file) => file.id !== fileId))
 	}
 
-	const getFileIcon = (file: File) => {
-		if (file.type.startsWith('image/')) return <ImageIcon className="h-6 w-6" />
-		if (file.type.includes('pdf')) return <FileText className="h-6 w-6" />
-		if (file.type.includes('zip') || file.type.includes('archive'))
+	const getFileIcon = (fileItem: FileItem) => {
+		if (fileItem.type === 'existing') return <File className="h-6 w-6" />
+
+		if (fileItem.file?.type.startsWith('image/')) return <ImageIcon className="h-6 w-6" />
+		if (fileItem.file?.type.includes('pdf')) return <FileText className="h-6 w-6" />
+		if (fileItem.file?.type.includes('zip') || fileItem.file?.type.includes('archive'))
 			return <FileArchive className="h-6 w-6" />
 		return <File className="h-6 w-6" />
 	}
@@ -111,11 +119,15 @@ export function FileUploader({
 								key={fileItem.id}
 								className="flex items-center gap-3 p-2 rounded-md border bg-muted/50"
 							>
-								{getFileIcon(fileItem.file)}
+								{getFileIcon(fileItem)}
 								<div className="flex-1 min-w-0">
-									<p className="text-sm font-medium truncate">{fileItem.file.name}</p>
+									<p className="text-sm font-medium truncate">
+										{fileItem.type === 'new' ? fileItem.file?.name : fileItem.file_name}
+									</p>
 									<p className="text-xs text-muted-foreground">
-										{(fileItem.file.size / 1024).toFixed(1)} KB
+										{fileItem.type === 'new'
+											? `${(fileItem.file?.size || 0 / 1024).toFixed(1)} KB`
+											: 'Vorhandene Datei'}
 									</p>
 								</div>
 								<Button

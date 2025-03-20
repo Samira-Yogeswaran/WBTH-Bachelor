@@ -84,6 +84,7 @@ export default function EditPost() {
 
 				// Format files for form
 				const formattedFiles = result.data.files.map((file) => ({
+					type: 'existing' as const,
 					id: file.id,
 					file_name: file.file_name,
 					file_url: file.file_url,
@@ -122,7 +123,7 @@ export default function EditPost() {
 			}
 
 			setIsSubmitting(false)
-			router.push('/profile')
+			router.push('/')
 		} catch (err) {
 			console.error('Error updating post:', err)
 			setError('Ein unerwarteter Fehler ist aufgetreten')

@@ -176,15 +176,17 @@ export async function createPost(values: z.infer<typeof postSchema>) {
 		}
 
 		const uploadedFiles = await Promise.all(
-			validatedData.files.map(async (file) => {
-				const { publicUrl } = await uploadFile(file.file, userId, 'posts')
+			validatedData.files
+				.filter((file): file is { type: 'new'; id: string; file: File } => file.type === 'new')
+				.map(async (file) => {
+					const { publicUrl } = await uploadFile(file.file, userId, 'posts')
 
-				return {
-					file_name: file.file.name,
-					file_url: publicUrl,
-					version: 1, // starts at version 1
-				}
-			})
+					return {
+						file_name: file.file.name,
+						file_url: publicUrl,
+						version: 1, // starts at version 1
+					}
+				})
 		)
 
 		const { data: postData, error: postError } = await supabase
@@ -270,7 +272,9 @@ export async function updatePost(postId: string, values: z.infer<typeof postSche
 		const filesToDelete =
 			existingFiles?.filter(
 				(existingFile) =>
-					!validatedData.files.some((newFile) => 'id' in newFile && newFile.id === existingFile.id)
+					!validatedData.files.some(
+						(newFile) => newFile.type === 'existing' && newFile.id === existingFile.id
+					)
 			) || []
 
 		// Delete removed files from storage and database
@@ -287,7 +291,9 @@ export async function updatePost(postId: string, values: z.infer<typeof postSche
 		}
 
 		// Upload new files
-		const newFiles = validatedData.files.filter((file) => !('id' in file))
+		const newFiles = validatedData.files.filter(
+			(file): file is { type: 'new'; id: string; file: File } => file.type === 'new'
+		)
 		const uploadedFiles = await Promise.all(
 			newFiles.map(async (file) => {
 				const { publicUrl } = await uploadFile(file.file, userId, 'posts')
