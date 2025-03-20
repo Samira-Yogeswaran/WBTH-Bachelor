@@ -27,8 +27,6 @@ export function FileUploader({
 	maxFiles = 5,
 	maxSize = 10 * 1024 * 1024, // 10MB
 }: FileUploaderProps) {
-	console.log(value)
-
 	const onDrop = useCallback(
 		(acceptedFiles: File[]) => {
 			if (value.length + acceptedFiles.length > maxFiles) {
