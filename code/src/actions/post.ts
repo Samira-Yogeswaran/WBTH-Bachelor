@@ -260,7 +260,7 @@ export async function updatePost(postId: string, values: z.infer<typeof postSche
 		// Get existing files
 		const { data: existingFiles, error: filesError } = await supabase
 			.from('files')
-			.select('id, file_name, file_url')
+			.select('id, file_name, file_url, file_type, version')
 			.eq('post_id', postId)
 
 		if (filesError) {
@@ -293,6 +293,34 @@ export async function updatePost(postId: string, values: z.infer<typeof postSche
 		// Upload only new files
 		const uploadedFiles = await Promise.all(
 			newFiles.map(async (file) => {
+				// Check if a file with the same name and type already exists
+				const existingFile = existingFiles?.find(
+					(ef) => ef.file_name === file.file.name && ef.file_type === file.file.type
+				)
+
+				if (existingFile) {
+					// If file exists, increment version and update
+					const { publicUrl } = await uploadFile(file.file, userId, 'posts')
+					const newVersion = existingFile.version + 1
+
+					// Update the existing file record with new version and URL
+					const { error: updateError } = await supabase
+						.from('files')
+						.update({
+							file_url: publicUrl,
+							version: newVersion,
+						})
+						.eq('id', existingFile.id)
+
+					if (updateError) {
+						console.error('Error updating file version:', updateError)
+						throw new Error('Beim Aktualisieren der Dateiversion ist ein Fehler aufgetreten.')
+					}
+
+					return null // Don't create a new file record
+				}
+
+				// If file doesn't exist, upload as new
 				const { publicUrl } = await uploadFile(file.file, userId, 'posts')
 
 				return {
@@ -306,9 +334,14 @@ export async function updatePost(postId: string, values: z.infer<typeof postSche
 			})
 		)
 
+		// Filter out null values (files that were updated instead of created)
+		const filesToInsert = uploadedFiles.filter(
+			(file): file is NonNullable<typeof file> => file !== null
+		)
+
 		// Insert only new files
-		if (uploadedFiles.length > 0) {
-			const { error: insertError } = await supabase.from('files').insert(uploadedFiles)
+		if (filesToInsert.length > 0) {
+			const { error: insertError } = await supabase.from('files').insert(filesToInsert)
 
 			if (insertError) {
 				console.error('Error inserting files:', insertError)
