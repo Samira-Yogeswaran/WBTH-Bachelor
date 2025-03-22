@@ -31,10 +31,8 @@ import { FileUploader } from '@/components/file-uploader'
 import { useAuth } from '@/hooks/use-auth'
 import { Loader2 } from 'lucide-react'
 
-export default function EditPost() {
-	const params = {
-		id: '4f6a131d-724f-4560-ad96-233ad471bd10',
-	}
+export default function EditPost({ params }: { params: Promise<{ id: string }> }) {
+	const { id } = React.use(params)
 	const router = useRouter()
 	const { user } = useAuth()
 	const [modules, setModules] = useState<Module[]>([])
@@ -69,7 +67,7 @@ export default function EditPost() {
 			setError(null)
 
 			try {
-				const result = await getPost(params.id)
+				const result = await getPost(id)
 
 				if (!result.success || !result.data) {
 					setError(result.error || 'Beitrag konnte nicht geladen werden')
@@ -83,12 +81,16 @@ export default function EditPost() {
 				const moduleItem = modules.find((m) => m.name === result.data.module)
 
 				// Format files for form
-				const formattedFiles = result.data.files.map((file) => ({
-					type: 'existing' as const,
-					id: file.id,
-					file_name: file.file_name,
-					file_url: file.file_url,
-				}))
+				const formattedFiles = await Promise.all(
+					result.data.files.map(async (file) => {
+						const response = await fetch(file.file_url)
+						const blob = await response.blob()
+						return {
+							id: file.id,
+							file: new File([blob], file.file_name, { type: file.file_type }),
+						}
+					})
+				)
 
 				form.reset({
 					title: result.data.title,
@@ -107,14 +109,14 @@ export default function EditPost() {
 		if (modules.length > 0) {
 			fetchPost()
 		}
-	}, [params.id, modules, form])
+	}, [id, modules, form])
 
 	async function onSubmit(values: z.infer<typeof postSchema>) {
 		setIsSubmitting(true)
 		setError(null)
 
 		try {
-			const result = await updatePost(params.id, values)
+			const result = await updatePost(id, values)
 
 			if (!result.success) {
 				setError(result.error || 'Ein Fehler ist beim Aktualisieren des Beitrags aufgetreten')

@@ -95,7 +95,7 @@ export async function getPost(postId: string) {
 
 	if (error) {
 		console.error('Error fetching post:', error)
-		return { success: false, error: 'Beim Abrufen des Beitrags ist ein Fehler aufgetreten.' }
+		return { success: false, error: 'Beitrag nicht gefunden' }
 	}
 
 	if (!data) {
@@ -136,7 +136,7 @@ export async function getPost(postId: string) {
 
 	const postFiles: PostgrestSingleResponse<PostFile[]> = await supabase
 		.from('files')
-		.select('id, file_name, file_url, version')
+		.select('id, file_name, file_url, file_type, file_size, version')
 		.eq('post_id', postId)
 
 	if (postFiles.error) {
@@ -176,17 +176,17 @@ export async function createPost(values: z.infer<typeof postSchema>) {
 		}
 
 		const uploadedFiles = await Promise.all(
-			validatedData.files
-				.filter((file): file is { type: 'new'; id: string; file: File } => file.type === 'new')
-				.map(async (file) => {
-					const { publicUrl } = await uploadFile(file.file, userId, 'posts')
+			validatedData.files.map(async (file) => {
+				const { publicUrl } = await uploadFile(file.file, userId, 'posts')
 
-					return {
-						file_name: file.file.name,
-						file_url: publicUrl,
-						version: 1, // starts at version 1
-					}
-				})
+				return {
+					file_name: file.file.name,
+					file_url: publicUrl,
+					file_type: file.file.type,
+					file_size: file.file.size,
+					version: 1, // starts at version 1
+				}
+			})
 		)
 
 		const { data: postData, error: postError } = await supabase
@@ -271,10 +271,7 @@ export async function updatePost(postId: string, values: z.infer<typeof postSche
 		// Find files to delete (files that exist in DB but not in the form submission)
 		const filesToDelete =
 			existingFiles?.filter(
-				(existingFile) =>
-					!validatedData.files.some(
-						(newFile) => newFile.type === 'existing' && newFile.id === existingFile.id
-					)
+				(existingFile) => !validatedData.files.some((newFile) => newFile.id === existingFile.id)
 			) || []
 
 		// Delete removed files from storage and database
@@ -291,16 +288,15 @@ export async function updatePost(postId: string, values: z.infer<typeof postSche
 		}
 
 		// Upload new files
-		const newFiles = validatedData.files.filter(
-			(file): file is { type: 'new'; id: string; file: File } => file.type === 'new'
-		)
 		const uploadedFiles = await Promise.all(
-			newFiles.map(async (file) => {
+			validatedData.files.map(async (file) => {
 				const { publicUrl } = await uploadFile(file.file, userId, 'posts')
 
 				return {
 					file_name: file.file.name,
 					file_url: publicUrl,
+					file_type: file.file.type,
+					file_size: file.file.size,
 					version: 1,
 					post_id: postId,
 				}

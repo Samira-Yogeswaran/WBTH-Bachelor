@@ -37,6 +37,8 @@ create table files (
   post_id uuid references posts(id) on delete cascade,
   file_name text not null,
   file_url text not null,
+  file_type text not null,
+  file_size bigint not null,
   version int default 1,
   created_at timestamp default now()
 );
