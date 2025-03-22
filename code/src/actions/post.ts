@@ -287,9 +287,12 @@ export async function updatePost(postId: string, values: z.infer<typeof postSche
 			await supabase.from('files').delete().eq('id', file.id)
 		}
 
-		// Upload new files
+		// Find new files to upload (files that have a temporary ID starting with 'file-')
+		const newFiles = validatedData.files.filter((file) => file.id.startsWith('file-'))
+
+		// Upload only new files
 		const uploadedFiles = await Promise.all(
-			validatedData.files.map(async (file) => {
+			newFiles.map(async (file) => {
 				const { publicUrl } = await uploadFile(file.file, userId, 'posts')
 
 				return {
@@ -303,7 +306,7 @@ export async function updatePost(postId: string, values: z.infer<typeof postSche
 			})
 		)
 
-		// Insert new files
+		// Insert only new files
 		if (uploadedFiles.length > 0) {
 			const { error: insertError } = await supabase.from('files').insert(uploadedFiles)
 
