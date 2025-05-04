@@ -25,7 +25,7 @@ import {
 } from '@/components/ui/select'
 import { postSchema } from '@/lib/validations'
 import { Module } from '@/types/general'
-import { supabase } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase/client'
 import { createPost } from '@/actions/post'
 import { FileUploader } from '@/components/file-uploader'
 import { useAuth } from '@/hooks/use-auth'

@@ -1,7 +1,7 @@
 'use server'
 
 import { z } from 'zod'
-import { supabase } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase/client'
 import { postSchema } from '@/lib/validations'
 import { auth } from './auth'
 import { Comment, PostFile, Post, SimplePost, UploadResult } from '@/types/general'

@@ -17,10 +17,10 @@ import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { profileFormSchema } from '@/lib/validations'
-import { User } from 'next-auth'
 import { editProfile } from '@/actions/auth'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { ExclamationTriangleIcon } from '@radix-ui/react-icons'
+import { User } from '@/types/general'
 
 type ProfileFormValues = z.infer<typeof profileFormSchema>
 
@@ -32,27 +32,22 @@ export default function ProfileForm({ user }: { user: User }) {
 	const form = useForm<ProfileFormValues>({
 		resolver: zodResolver(profileFormSchema),
 		defaultValues: {
-			firstName: user.firstName,
-			lastName: user.lastName,
+			firstName: user.firstname,
+			lastName: user.lastname,
 		},
 	})
 
 	async function onSubmit(values: ProfileFormValues) {
-		console.log(values)
 		setIsLoading(true)
 		setError(null)
 		try {
-			const { error } = await editProfile(values)
-			if (error) {
-				setError(error)
+			const { error, user } = await editProfile(values)
+			if (error || !user) {
+				setError(error || 'Ein unbekannter Fehler ist aufgetreten.')
 				throw new Error(error)
 			}
 
-			setUser((prev) => ({
-				...prev,
-				firstName: values.firstName,
-				lastName: values.lastName,
-			}))
+			setUser(user)
 		} catch (error) {
 			console.error(error)
 			if (error instanceof Error) {
@@ -83,11 +78,11 @@ export default function ProfileForm({ user }: { user: User }) {
 				)}
 				<div className="flex items-center space-x-4">
 					<Avatar className="h-20 w-20">
-						<AvatarFallback>{_user.name?.charAt(0) || 'U'}</AvatarFallback>
+						<AvatarFallback>{_user.firstname?.charAt(0) || 'U'}</AvatarFallback>
 					</Avatar>
 					<div>
 						<h2 className="text-2xl font-bold">
-							{_user.firstName} {_user.lastName}
+							{_user.firstname} {_user.lastname}
 						</h2>
 						<p className="text-muted-foreground">{_user.email}</p>
 					</div>

@@ -4,8 +4,8 @@ import { useEffect, useState } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { UserPostsList } from '@/components/user-posts-list'
-import { User } from 'next-auth'
 import ProfileForm from '@/components/profile-form'
+import { User } from '@/types/general'
 
 interface ProfileTabsProps {
 	user: User

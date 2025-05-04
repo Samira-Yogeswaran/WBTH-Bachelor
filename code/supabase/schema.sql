@@ -4,16 +4,6 @@ DROP TABLE IF EXISTS likes CASCADE;
 DROP TABLE IF EXISTS files CASCADE;
 DROP TABLE IF EXISTS posts CASCADE;
 DROP TABLE IF EXISTS modules CASCADE;
-DROP TABLE IF EXISTS users CASCADE;
-
--- Users Table
-create table users (
- id uuid primary key references auth.users(id),
- email text unique not null,
- firstname text,
- lastname text,
- created_at timestamp default now()
-);
 
 -- Modules Table
 CREATE TABLE modules (
@@ -25,7 +15,7 @@ CREATE TABLE modules (
 -- Posts Table
 CREATE TABLE posts (
   id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id uuid REFERENCES users(id) ON DELETE CASCADE,
+  user_id uuid NOT NULL, -- Changed to NOT NULL since it will reference the auth project
   module_id uuid REFERENCES modules(id) ON DELETE SET NULL,
   title TEXT NOT NULL,
   created_at TIMESTAMP DEFAULT now()
@@ -46,7 +36,7 @@ create table files (
 -- Likes Table
 create table likes (
   id uuid primary key default uuid_generate_v4(),
-  user_id uuid references users(id) on delete cascade,
+  user_id uuid not null, -- Changed to NOT NULL since it will reference the auth project
   post_id uuid references posts(id) on delete cascade,
   created_at timestamp default now()
 );
@@ -54,8 +44,94 @@ create table likes (
 -- Comments Table
 create table comments (
   id uuid primary key default uuid_generate_v4(),
-  user_id uuid references users(id) on delete cascade,
+  user_id uuid not null, -- Changed to NOT NULL since it will reference the auth project
   post_id uuid references posts(id) on delete cascade,
   content text not null,
   created_at timestamp default now()
 );
+
+-- Enable RLS on all tables
+ALTER TABLE modules ENABLE ROW LEVEL SECURITY;
+ALTER TABLE posts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE files ENABLE ROW LEVEL SECURITY;
+ALTER TABLE likes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE comments ENABLE ROW LEVEL SECURITY;
+
+-- Create policies for modules
+CREATE POLICY "Authenticated users can view modules"
+  ON modules FOR SELECT
+  USING (auth.role() = 'authenticated');
+
+CREATE POLICY "Authenticated users can create modules"
+  ON modules FOR INSERT
+  WITH CHECK (auth.role() = 'authenticated');
+
+CREATE POLICY "Authenticated users can update modules"
+  ON modules FOR UPDATE
+  USING (auth.role() = 'authenticated');
+
+-- Create policies for posts
+CREATE POLICY "Authenticated users can view posts"
+  ON posts FOR SELECT
+  USING (auth.role() = 'authenticated');
+
+CREATE POLICY "Authenticated users can create posts"
+  ON posts FOR INSERT
+  WITH CHECK (auth.role() = 'authenticated');
+
+CREATE POLICY "Users can update their own posts"
+  ON posts FOR UPDATE
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete their own posts"
+  ON posts FOR DELETE
+  USING (auth.uid() = user_id);
+
+-- Create policies for files
+CREATE POLICY "Authenticated users can view files"
+  ON files FOR SELECT
+  USING (auth.role() = 'authenticated');
+
+CREATE POLICY "Authenticated users can create files"
+  ON files FOR INSERT
+  WITH CHECK (auth.role() = 'authenticated');
+
+CREATE POLICY "Users can delete their own files"
+  ON files FOR DELETE
+  USING (
+    EXISTS (
+      SELECT 1 FROM posts
+      WHERE posts.id = files.post_id
+      AND posts.user_id = auth.uid()
+    )
+  );
+
+-- Create policies for likes
+CREATE POLICY "Authenticated users can view likes"
+  ON likes FOR SELECT
+  USING (auth.role() = 'authenticated');
+
+CREATE POLICY "Authenticated users can create likes"
+  ON likes FOR INSERT
+  WITH CHECK (auth.role() = 'authenticated');
+
+CREATE POLICY "Users can delete their own likes"
+  ON likes FOR DELETE
+  USING (auth.uid() = user_id);
+
+-- Create policies for comments
+CREATE POLICY "Authenticated users can view comments"
+  ON comments FOR SELECT
+  USING (auth.role() = 'authenticated');
+
+CREATE POLICY "Authenticated users can create comments"
+  ON comments FOR INSERT
+  WITH CHECK (auth.role() = 'authenticated');
+
+CREATE POLICY "Users can update their own comments"
+  ON comments FOR UPDATE
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete their own comments"
+  ON comments FOR DELETE
+  USING (auth.uid() = user_id);

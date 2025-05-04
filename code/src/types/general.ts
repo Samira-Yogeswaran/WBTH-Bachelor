@@ -54,3 +54,11 @@ export type UploadResult = {
 	publicUrl?: string
 	error?: string
 }
+
+export type User = {
+	id: string
+	email: string
+	firstname: string
+	lastname: string
+	createdAt: string
+}
