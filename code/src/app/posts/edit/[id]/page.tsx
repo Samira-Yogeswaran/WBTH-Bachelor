@@ -25,7 +25,7 @@ import {
 } from '@/components/ui/select'
 import { postSchema } from '@/lib/validations'
 import { Module, Post } from '@/types/general'
-import { supabase } from '@/lib/supabase/client'
+import { supabaseWithAuth } from '@/lib/supabase/client'
 import { getPost, updatePost } from '@/actions/post'
 import { FileUploader } from '@/components/file-uploader'
 import { useAuth } from '@/hooks/use-auth'
@@ -52,6 +52,7 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
 
 	useEffect(() => {
 		const fetchModules = async () => {
+			const supabase = await supabaseWithAuth()
 			const { data } = await supabase.from('modules').select('id, name')
 			if (data) {
 				setModules(data)

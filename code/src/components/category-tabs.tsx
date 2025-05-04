@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import { supabase } from '@/lib/supabase/client'
+import { supabaseWithAuth } from '@/lib/supabase/client'
 import { Module } from '@/types/general'
 
 export function ModuleTabs({
@@ -22,7 +22,8 @@ export function ModuleTabs({
 			setIsLoading(true)
 
 			try {
-				const { data } = await supabase.from('modules').select('id, name')
+				const supabaseClient = await supabaseWithAuth()
+				const { data } = await supabaseClient.from('modules').select('id, name')
 
 				if (data) {
 					setModules([{ id: 'all', name: 'Alle' }, ...data])

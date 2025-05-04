@@ -1,13 +1,13 @@
 'use server'
 
 import { z } from 'zod'
-import { supabase } from '@/lib/supabase/client'
 import { postSchema } from '@/lib/validations'
 import { auth } from './auth'
 import { Comment, PostFile, Post, SimplePost, UploadResult } from '@/types/general'
 import { formatTimestamp } from '@/lib/utils'
 import { PostgrestSingleResponse } from '@supabase/supabase-js'
 import { PostgrestFilterBuilder } from '@supabase/postgrest-js'
+import { supabaseAuth, supabaseWithAuth } from '@/lib/supabase/client'
 
 export async function getPosts({
 	moduleId = 'all',
@@ -18,6 +18,7 @@ export async function getPosts({
 	searchQuery?: string
 	sortBy?: 'recent' | 'popular' | 'comments'
 }) {
+	const supabase = await supabaseWithAuth()
 	let query = supabase.rpc('search_posts', {
 		search_text: searchQuery.trim() || '', // or else the stored procedure will return all posts
 	}) as PostgrestFilterBuilder<any, any, SimplePost[], 'posts', unknown>
@@ -79,6 +80,7 @@ export async function getPosts({
 }
 
 export async function getPost(postId: string) {
+	const supabase = await supabaseWithAuth()
 	const { data, error } = await supabase
 		.from('posts')
 		.select(
@@ -110,7 +112,7 @@ export async function getPost(postId: string) {
 		post_ids: [postId],
 	})
 
-	const user = await supabase
+	const user = await supabaseAuth
 		.from('users')
 		.select('id, firstname, lastname, email')
 		.eq('id', data.user_id)
@@ -165,6 +167,7 @@ export async function getPost(postId: string) {
 }
 
 export async function createPost(values: z.infer<typeof postSchema>) {
+	const supabase = await supabaseWithAuth()
 	try {
 		const validatedData = postSchema.parse(values)
 		const session = await auth()
@@ -231,6 +234,7 @@ export async function createPost(values: z.infer<typeof postSchema>) {
 }
 
 export async function updatePost(postId: string, values: z.infer<typeof postSchema>) {
+	const supabase = await supabaseWithAuth()
 	try {
 		const validatedData = postSchema.parse(values)
 		const session = await auth()
@@ -386,6 +390,7 @@ export async function uploadFile(
 	userId: string,
 	folder: string
 ): Promise<UploadResult> {
+	const supabase = await supabaseWithAuth()
 	try {
 		if (!file) {
 			return { success: false, error: 'No file provided' }
@@ -431,6 +436,7 @@ export async function uploadFile(
 }
 
 export async function deleteFile(filePath: string): Promise<{ success: boolean; error?: string }> {
+	const supabase = await supabaseWithAuth()
 	try {
 		const { error } = await supabase.storage.from('studygram').remove([filePath])
 
@@ -448,6 +454,7 @@ export async function deleteFile(filePath: string): Promise<{ success: boolean; 
 }
 
 export async function likePost(postId: string) {
+	const supabase = await supabaseWithAuth()
 	const session = await auth()
 	const userId = session?.user.id
 
@@ -480,6 +487,7 @@ export async function likePost(postId: string) {
 }
 
 export async function getComments(postId: string) {
+	const supabase = await supabaseWithAuth()
 	const { data: comments, error } = await supabase
 		.from('comments')
 		.select(`id, content, created_at, user_id`)
@@ -497,7 +505,7 @@ export async function getComments(postId: string) {
 
 	const commentsWithUser = await Promise.all(
 		comments.map(async (comment) => {
-			const user = await supabase
+			const user = await supabaseAuth
 				.from('users')
 				.select('id, firstname, lastname, email')
 				.eq('id', comment.user_id)
@@ -523,6 +531,7 @@ export async function getComments(postId: string) {
 }
 
 export async function createComment(postId: string, content: string) {
+	const supabase = await supabaseWithAuth()
 	const session = await auth()
 	const userId = session?.user.id
 
@@ -540,7 +549,7 @@ export async function createComment(postId: string, content: string) {
 		return { success: false, error: 'Beim Erstellen des Kommentars ist ein Fehler aufgetreten.' }
 	}
 
-	const user = await supabase
+	const user = await supabaseAuth
 		.from('users')
 		.select('id, firstname, lastname, email')
 		.eq('id', userId)
@@ -566,6 +575,7 @@ export async function createComment(postId: string, content: string) {
 }
 
 export async function getPostsByUser() {
+	const supabase = await supabaseWithAuth()
 	const session = await auth()
 	const userId = session?.user.id
 
@@ -594,6 +604,7 @@ export async function getPostsByUser() {
 }
 
 export async function deletePost(postId: string) {
+	const supabase = await supabaseWithAuth()
 	try {
 		const session = await auth()
 		const userId = session?.user.id
