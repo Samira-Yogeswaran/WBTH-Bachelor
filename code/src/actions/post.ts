@@ -559,8 +559,6 @@ export async function createComment(postId: string, content: string) {
 		return { success: false, error: 'Beim Erstellen des Kommentars ist ein Fehler aufgetreten.' }
 	}
 
-	console.log(data)
-
 	const commentWithUser = {
 		id: data[0].id,
 		content: data[0].content,

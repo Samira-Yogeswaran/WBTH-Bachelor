@@ -23,12 +23,13 @@ export function ModuleTabs({
 
 			try {
 				const supabaseClient = await supabaseWithAuth()
-				const { data } = await supabaseClient.from('modules').select('id, name')
+				const { data } = await supabaseClient.from('modules').select('id, name, etcs_credits, type')
+				const allModule = { id: 'all', name: 'Alle', etcs_credits: 0, type: 'Alle' }
 
 				if (data) {
-					setModules([{ id: 'all', name: 'Alle' }, ...data])
+					setModules([allModule, ...data])
 				} else {
-					setModules([{ id: 'all', name: 'Alle' }])
+					setModules([allModule])
 				}
 			} catch (error) {
 				console.error('Error fetching modules:', error)
@@ -63,6 +64,11 @@ export function ModuleTabs({
 						)}
 					>
 						{module.name}
+						<span className="ml-auto">
+							{module.id !== 'all' && (
+								<span className="text-xs text-gray-500">({module.etcs_credits} ECTS)</span>
+							)}
+						</span>
 					</Button>
 				))
 			)}

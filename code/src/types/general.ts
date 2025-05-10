@@ -1,6 +1,8 @@
 export type Module = {
 	id: string
 	name: string
+	etcs_credits: number
+	type: string
 }
 
 export type Post = {

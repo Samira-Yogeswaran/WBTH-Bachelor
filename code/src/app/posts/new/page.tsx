@@ -40,7 +40,7 @@ export default function CreatePost() {
 	useEffect(() => {
 		const fetchModules = async () => {
 			const supabase = await supabaseWithAuth()
-			const { data } = await supabase.from('modules').select('id, name')
+			const { data } = await supabase.from('modules').select('id, name, etcs_credits, type')
 			if (data) {
 				setModules(data)
 			}
@@ -127,6 +127,9 @@ export default function CreatePost() {
 												{modules.map((module) => (
 													<SelectItem key={module.id} value={module.id}>
 														{module.name}
+														<span className="ml-2 text-xs text-muted-foreground">
+															({module.etcs_credits} ECTS)
+														</span>
 													</SelectItem>
 												))}
 											</SelectContent>

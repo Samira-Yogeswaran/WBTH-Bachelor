@@ -9,6 +9,8 @@ DROP TABLE IF EXISTS modules CASCADE;
 CREATE TABLE modules (
   id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
   name TEXT UNIQUE NOT NULL,
+  type TEXT NOT NULL DEFAULT 'Wahlpflichtmodul',
+  etcs_credits INT NOT NULL DEFAULT 0,
   created_at TIMESTAMP DEFAULT now()
 );
 
