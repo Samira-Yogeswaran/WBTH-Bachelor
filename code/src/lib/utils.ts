@@ -3,6 +3,7 @@ import CredentialsProvider from 'next-auth/providers/credentials'
 import { supabaseAuth } from '@/lib/supabase/client'
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
+import { Module } from '@/types/general'
 
 export function cn(...inputs: ClassValue[]) {
 	return twMerge(clsx(inputs))
@@ -96,3 +97,13 @@ export const authOptions = {
 		strategy: 'jwt',
 	},
 } satisfies AuthOptions
+
+export function groupModulesByType(modules: Module[]): Record<string, Module[]> {
+	return modules.reduce((acc, module) => {
+		if (!acc[module.type]) {
+			acc[module.type] = []
+		}
+		acc[module.type].push(module)
+		return acc
+	}, {} as Record<string, Module[]>)
+}

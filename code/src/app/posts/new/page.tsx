@@ -29,6 +29,7 @@ import { supabaseWithAuth } from '@/lib/supabase/client'
 import { createPost } from '@/actions/post'
 import { FileUploader } from '@/components/file-uploader'
 import { useAuth } from '@/hooks/use-auth'
+import { groupModulesByType } from '@/lib/utils'
 
 export default function CreatePost() {
 	const router = useRouter()
@@ -72,6 +73,9 @@ export default function CreatePost() {
 		setIsSubmitting(false)
 		router.push(`/`)
 	}
+
+	const groupedModules = groupModulesByType(modules)
+	const sortedTypes = Object.keys(groupedModules).sort()
 
 	return (
 		<div className="px-8 py-6 max-w-[1000px] mx-auto">
@@ -124,13 +128,20 @@ export default function CreatePost() {
 												/>
 											</SelectTrigger>
 											<SelectContent>
-												{modules.map((module) => (
-													<SelectItem key={module.id} value={module.id}>
-														{module.name}
-														<span className="ml-2 text-xs text-muted-foreground">
-															({module.etcs_credits} ECTS)
-														</span>
-													</SelectItem>
+												{sortedTypes.map((type) => (
+													<div key={type}>
+														<div className="px-2 py-1 text-xs font-medium text-muted-foreground uppercase">
+															{type}
+														</div>
+														{groupedModules[type].map((module) => (
+															<SelectItem key={module.id} value={module.id}>
+																{module.name}
+																<span className="ml-2 text-xs text-muted-foreground">
+																	({module.etcs_credits} ECTS)
+																</span>
+															</SelectItem>
+														))}
+													</div>
 												))}
 											</SelectContent>
 										</Select>

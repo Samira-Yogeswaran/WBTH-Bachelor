@@ -30,6 +30,7 @@ import { getPost, updatePost } from '@/actions/post'
 import { FileUploader } from '@/components/file-uploader'
 import { useAuth } from '@/hooks/use-auth'
 import { Loader2 } from 'lucide-react'
+import { groupModulesByType } from '@/lib/utils'
 
 export default function EditPost({ params }: { params: Promise<{ id: string }> }) {
 	const { id } = React.use(params)
@@ -134,6 +135,9 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
 		}
 	}
 
+	const groupedModules = groupModulesByType(modules)
+	const sortedTypes = Object.keys(groupedModules).sort()
+
 	if (isLoading) {
 		return (
 			<div className="flex justify-center items-center py-10">
@@ -196,13 +200,20 @@ export default function EditPost({ params }: { params: Promise<{ id: string }> }
 												/>
 											</SelectTrigger>
 											<SelectContent>
-												{modules.map((module) => (
-													<SelectItem key={module.id} value={module.id}>
-														{module.name}
-														<span className="ml-2 text-xs text-muted-foreground">
-															({module.etcs_credits} ECTS)
-														</span>
-													</SelectItem>
+												{sortedTypes.map((type) => (
+													<div key={type}>
+														<div className="px-2 py-1 text-xs font-medium text-muted-foreground uppercase">
+															{type}
+														</div>
+														{groupedModules[type].map((module) => (
+															<SelectItem key={module.id} value={module.id}>
+																{module.name}
+																<span className="ml-2 text-xs text-muted-foreground">
+																	({module.etcs_credits} ECTS)
+																</span>
+															</SelectItem>
+														))}
+													</div>
 												))}
 											</SelectContent>
 										</Select>

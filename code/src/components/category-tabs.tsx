@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { cn } from '@/lib/utils'
+import { cn, groupModulesByType } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { supabaseWithAuth } from '@/lib/supabase/client'
@@ -41,8 +41,11 @@ export function ModuleTabs({
 		fetchModules()
 	}, [])
 
+	const groupedModules = groupModulesByType(modules)
+	const sortedTypes = Object.keys(groupedModules).sort()
+
 	return (
-		<div className="space-y-1">
+		<div className="space-y-4">
 			{isLoading ? (
 				<>
 					{Array(8)
@@ -52,24 +55,31 @@ export function ModuleTabs({
 						))}
 				</>
 			) : (
-				modules.map((module) => (
-					<Button
-						key={module.id}
-						variant={activeModule.id === module.id ? 'default' : 'ghost'}
-						size="sm"
-						onClick={() => setActiveModule(module)}
-						className={cn(
-							'justify-start w-full hover:cursor-pointer',
-							activeModule.id === module.id ? '' : 'hover:bg-transparent hover:underline'
-						)}
-					>
-						{module.name}
-						<span className="ml-auto">
-							{module.id !== 'all' && (
-								<span className="text-xs text-gray-500">({module.etcs_credits} ECTS)</span>
-							)}
-						</span>
-					</Button>
+				sortedTypes.map((type) => (
+					<div key={type}>
+						<h3 className="text-sm font-semibold text-gray-700 mb-1">{type}</h3>
+						<div className="space-y-1">
+							{groupedModules[type].map((module) => (
+								<Button
+									key={module.id}
+									variant={activeModule.id === module.id ? 'default' : 'ghost'}
+									size="sm"
+									onClick={() => setActiveModule(module)}
+									className={cn(
+										'justify-start w-full hover:cursor-pointer',
+										activeModule.id === module.id ? '' : 'hover:bg-transparent hover:underline'
+									)}
+								>
+									{module.name}
+									<span className="ml-auto">
+										{module.id !== 'all' && (
+											<span className="text-xs text-gray-500">({module.etcs_credits} ECTS)</span>
+										)}
+									</span>
+								</Button>
+							))}
+						</div>
+					</div>
 				))
 			)}
 		</div>
