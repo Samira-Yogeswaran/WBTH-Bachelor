@@ -10,6 +10,8 @@ export default function Home() {
 	const [activeModule, setActiveModule] = useState<Module>({
 		id: 'all',
 		name: 'Alle',
+		etcs_credits: 0,
+		type: 'Alle',
 	})
 	const [searchQuery, setSearchQuery] = useState('')
 	const [sortBy, setSortBy] = useState<'recent' | 'comments' | 'popular'>('recent')
@@ -18,7 +20,7 @@ export default function Home() {
 		<div className="px-8 py-6 max-w-[1400px] mx-auto">
 			<div className="flex gap-6">
 				{/* Left sidebar */}
-				<aside className="w-64 shrink-0">
+				<aside className="w-1/4 shrink-0">
 					<div className="sticky top-20">
 						<h2 className="text-xl font-semibold mb-4">Module</h2>
 						<ModuleTabs activeModule={activeModule} setActiveModule={setActiveModule} />
